@@ -22,11 +22,8 @@
 */
 
 #import <Cocoa/Cocoa.h>
+#import <MetalKit/MetalKit.h>
 #import <QuartzCore/QuartzCore.h>
-
-#include <OpenGL/gl.h>
-#include <OpenGL/glext.h>
-#include <OpenGL/glu.h>
 
 #include <libspectrum.h>
 
@@ -41,11 +38,13 @@
 @class Emulator;
 @class Texture;
 
-@interface DisplayOpenGLView : NSOpenGLView
+@interface DisplayOpenGLView : MTKView <MTKViewDelegate>
 {
-  /* Two backing textures */
+  /* Two CPU-side screen buffers; the dirty machinery in
+     -uploadDirtyToTexture keeps both consistent across frames. */
   Cocoa_Texture screenTex[MAX_SCREEN_BUFFERS];
-  GLuint screenTexId[MAX_SCREEN_BUFFERS];
+  /* Matching MTLTextures uploaded to the GPU. */
+  id<MTLTexture> screenTexMTL[MAX_SCREEN_BUFFERS];
   int currentScreenTex;
 
   Texture *redCassette;
@@ -60,7 +59,6 @@
   ui_statusbar_state disk_state;
   ui_statusbar_state mdr_state;
   ui_statusbar_state tape_state;
-  BOOL statusbar_updated;
 
   NSLock *view_lock;
 
@@ -70,10 +68,18 @@
   Emulator *proxy_emulator;
   NSConnection *kitConnection;
 
-  CVDisplayLinkRef displayLink;
-  CGDirectDisplayID mainViewDisplayID;
-  BOOL displayLinkRunning;
-  BOOL isResizing;
+  /* Metal rendering state. */
+  id<MTLDevice> mtlDevice;
+  id<MTLCommandQueue> commandQueue;
+  id<MTLRenderPipelineState> pipelineState;
+  /* Reusable CPU-side staging buffer for the BGR5A1 -> BGRA8 conversion
+     done at upload time. Sized to a full screen on first use. */
+  uint32_t *conversionBuffer;
+  size_t conversionBufferPixels;
+
+  /* Frame pacing is driven by MTKView's built-in CADisplayLink, which
+     calls -drawInMTKView: each vsync. -displayLinkStart / -displayLinkStop
+     toggle self.paused (always on the main thread). */
 }
 +(DisplayOpenGLView *) instance;
 
@@ -81,7 +87,6 @@
 
 -(void) createTexture:(Cocoa_Texture*)newScreen;
 -(void) destroyTexture;
--(void) blitIcon:(Texture*)iconTexture;
 
 -(void) setServer:(id)anObject;
 -(id) initWithFrame:(NSRect)frameRect;
@@ -95,8 +100,6 @@
              redTex:(Texture*) redTexture
             xOrigin:(int) x
             yOrigin:(int) y;
-
--(void) setNeedsDisplayYes;
 
 -(void) openFile:(const char *)filename;
 -(void) snapOpen:(const char *)filename;
@@ -226,20 +229,13 @@
 
 -(BOOL) isFlipped;
 
--(void) copyGLtoQuartz;
--(void) windowWillMiniaturize:(NSNotification *)aNotification;
--(void) windowDidMiniaturize:(NSNotification *)notification;
 -(BOOL) windowShouldClose:(id)window;
 -(void) windowDidResignKey:(NSNotification *)notification;
 
--(CVReturn) displayFrame:(const CVTimeStamp *)timeStamp;
 -(void) windowChangedScreen:(NSNotification*)inNotification;
--(void) windowDidDeminiaturize:(NSNotification *)inNotification;
 
 -(void) displayLinkStop;
 -(void) displayLinkStart;
-
--(void) doReshape;
 
 @end
 

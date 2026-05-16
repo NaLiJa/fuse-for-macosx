@@ -195,7 +195,6 @@
 		B6A6F0DA0B3D141B000B88E9 /* cocoaui.m in Sources */ = {isa = PBXBuildFile; fileRef = B6A6F0D90B3D141B000B88E9 /* cocoaui.m */; };
 		B6A6F0EE0B3D5F9E000B88E9 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6A6F0ED0B3D5F9E000B88E9 /* CoreAudio.framework */; };
 		B6A6F0F30B3D602F000B88E9 /* AudioUnit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6A6F0F20B3D602F000B88E9 /* AudioUnit.framework */; };
-		B6A6F1060B3D60D0000B88E9 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F520C8BC038D022E01A804BA /* OpenGL.framework */; };
 		B2D0915DE32D43E89E59E3EF /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8287F6EDEBAC4FFA8708CC4E /* Metal.framework */; };
 		70561DA4F03E4F3DA5B85553 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAA54F20E902456BACB24998 /* MetalKit.framework */; };
 		B6A6F10E0B3D6360000B88E9 /* cocoaerror.m in Sources */ = {isa = PBXBuildFile; fileRef = B6A6F10D0B3D6360000B88E9 /* cocoaerror.m */; };
@@ -814,7 +813,6 @@
 		D1DF6DD726F8077F004A4AB7 /* debug.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = debug.png; sourceTree = "<group>"; };
 		D1ECC73C2924069800147252 /* ttx2000s.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ttx2000s.h; sourceTree = "<group>"; };
 		D1ECC73D2924069800147252 /* ttx2000s.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = ttx2000s.c; sourceTree = "<group>"; };
-		F520C8BC038D022E01A804BA /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = /System/Library/Frameworks/OpenGL.framework; sourceTree = "<absolute>"; };
 		8287F6EDEBAC4FFA8708CC4E /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = /System/Library/Frameworks/Metal.framework; sourceTree = "<absolute>"; };
 		EAA54F20E902456BACB24998 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = /System/Library/Frameworks/MetalKit.framework; sourceTree = "<absolute>"; };
 		F536B56503A0C275011517A0 /* utils.c */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.c; name = utils.c; path = ../utils.c; sourceTree = SOURCE_ROOT; };
@@ -959,7 +957,6 @@
 				B6A6F0EE0B3D5F9E000B88E9 /* CoreAudio.framework in Frameworks */,
 				B6A6F0F30B3D602F000B88E9 /* AudioUnit.framework in Frameworks */,
 				FE9913050000000000000005 /* AudioToolbox.framework in Frameworks */,
-				B6A6F1060B3D60D0000B88E9 /* OpenGL.framework in Frameworks */,
 				B2D0915DE32D43E89E59E3EF /* Metal.framework in Frameworks */,
 				70561DA4F03E4F3DA5B85553 /* MetalKit.framework in Frameworks */,
 				B653532B0B902CB20083F942 /* IOKit.framework in Frameworks */,

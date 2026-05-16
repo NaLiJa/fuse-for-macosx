@@ -196,6 +196,8 @@
 		B6A6F0EE0B3D5F9E000B88E9 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6A6F0ED0B3D5F9E000B88E9 /* CoreAudio.framework */; };
 		B6A6F0F30B3D602F000B88E9 /* AudioUnit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6A6F0F20B3D602F000B88E9 /* AudioUnit.framework */; };
 		B6A6F1060B3D60D0000B88E9 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F520C8BC038D022E01A804BA /* OpenGL.framework */; };
+		B2D0915DE32D43E89E59E3EF /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8287F6EDEBAC4FFA8708CC4E /* Metal.framework */; };
+		70561DA4F03E4F3DA5B85553 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAA54F20E902456BACB24998 /* MetalKit.framework */; };
 		B6A6F10E0B3D6360000B88E9 /* cocoaerror.m in Sources */ = {isa = PBXBuildFile; fileRef = B6A6F10D0B3D6360000B88E9 /* cocoaerror.m */; };
 		B6A6F1200B3EA737000B88E9 /* cocoascreenshot.m in Sources */ = {isa = PBXBuildFile; fileRef = B6A6F11E0B3EA737000B88E9 /* cocoascreenshot.m */; };
 		B6B076B30B59FE9A00D4F95C /* Emulator.m in Sources */ = {isa = PBXBuildFile; fileRef = B6B076B10B59FE9A00D4F95C /* Emulator.m */; };
@@ -811,6 +813,8 @@
 		D1ECC73C2924069800147252 /* ttx2000s.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ttx2000s.h; sourceTree = "<group>"; };
 		D1ECC73D2924069800147252 /* ttx2000s.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = ttx2000s.c; sourceTree = "<group>"; };
 		F520C8BC038D022E01A804BA /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = /System/Library/Frameworks/OpenGL.framework; sourceTree = "<absolute>"; };
+		8287F6EDEBAC4FFA8708CC4E /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = /System/Library/Frameworks/Metal.framework; sourceTree = "<absolute>"; };
+		EAA54F20E902456BACB24998 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = /System/Library/Frameworks/MetalKit.framework; sourceTree = "<absolute>"; };
 		F536B56503A0C275011517A0 /* utils.c */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.c; name = utils.c; path = ../utils.c; sourceTree = SOURCE_ROOT; };
 		F541FB5E03B0B33401FF8235 /* scaler.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; name = scaler.h; path = ../ui/scaler/scaler.h; sourceTree = SOURCE_ROOT; };
 		F54670EB03A3F3E70143EC2C /* settings.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = settings.m; sourceTree = SOURCE_ROOT; };
@@ -954,6 +958,8 @@
 				B6A6F0F30B3D602F000B88E9 /* AudioUnit.framework in Frameworks */,
 				FE9913050000000000000005 /* AudioToolbox.framework in Frameworks */,
 				B6A6F1060B3D60D0000B88E9 /* OpenGL.framework in Frameworks */,
+				B2D0915DE32D43E89E59E3EF /* Metal.framework in Frameworks */,
+				70561DA4F03E4F3DA5B85553 /* MetalKit.framework in Frameworks */,
 				B653532B0B902CB20083F942 /* IOKit.framework in Frameworks */,
 				B6251C3E0C2EB24500BD5543 /* QuartzCore.framework in Frameworks */,
 			);
@@ -1084,6 +1090,8 @@
 			isa = PBXGroup;
 			children = (
 				FED24DE22EE108360013DD32 /* Security.framework */,
+				8287F6EDEBAC4FFA8708CC4E /* Metal.framework */,
+				EAA54F20E902456BACB24998 /* MetalKit.framework */,
 				1058C7A0FEA54F0111CA2CBB /* Linked Frameworks */,
 				1058C7A2FEA54F0111CA2CBB /* Other Frameworks */,
 			);
@@ -2347,7 +2355,7 @@
 				INFOPLIST_FILE = "Info-FuseX.plist";
 				INSTALL_PATH = /Applications;
 				LIBRARY_SEARCH_PATHS = .;
-				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = "1.7.0-fusex-0.1";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "--deep";
@@ -2412,7 +2420,7 @@
 				INFOPLIST_FILE = "Info-FuseX.plist";
 				INSTALL_PATH = /Applications;
 				LIBRARY_SEARCH_PATHS = .;
-				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = "1.7.0-fusex-0.1";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "--deep";
@@ -2476,7 +2484,7 @@
 				INFOPLIST_FILE = "Info-FuseX.plist";
 				INSTALL_PATH = /Applications;
 				LIBRARY_SEARCH_PATHS = .;
-				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = "1.7.0-fusex-0.1";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "--deep";
@@ -2514,7 +2522,7 @@
 				GCC_WARN_SHADOW = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				LLVM_LTO = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				ONLY_ACTIVE_ARCH = YES;
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				RUN_CLANG_STATIC_ANALYZER = YES;
@@ -2542,7 +2550,7 @@
 				GCC_WARN_SHADOW = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				LLVM_LTO = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
@@ -2567,7 +2575,7 @@
 				GCC_WARN_SHADOW = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				LLVM_LTO = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				SDKROOT = macosx;
@@ -2624,7 +2632,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = FuseHelp/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
-				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = "net.sourceforge.projects.fuse-for-macosx.FuseHelp";
@@ -2677,7 +2685,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = FuseHelp/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
-				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = "net.sourceforge.projects.fuse-for-macosx.FuseHelp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -2729,7 +2737,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INFOPLIST_FILE = FuseHelp/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
-				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = "net.sourceforge.projects.fuse-for-macosx.FuseHelp";
 				PRODUCT_NAME = "$(TARGET_NAME)";

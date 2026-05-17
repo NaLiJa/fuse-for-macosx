@@ -637,18 +637,18 @@ copy_critical_region( int beam_x, int beam_y )
 }
 
 static inline void
-get_beam_position( int *x, int *y )
+get_beam_position( libspectrum_dword t, int *x, int *y )
 {
-  if( tstates < machine_current->line_times[ 0 ] ) {
+  if( t < machine_current->line_times[ 0 ] ) {
     *x = *y = -1;
     return;
   }
 
-  *y = ( tstates - machine_current->line_times[ 0 ] ) /
+  *y = ( t - machine_current->line_times[ 0 ] ) /
     machine_current->timings.tstates_per_line;
 
   if( *y >= 0 && *y <= DISPLAY_SCREEN_HEIGHT )
-    *x = ( tstates - machine_current->line_times[ *y ] ) / 4;
+    *x = ( t - machine_current->line_times[ *y ] ) / 4;
   else *x = 0;
 }
 
@@ -657,7 +657,7 @@ update_critical_internal( int x, int y )
 {
   int beam_x, beam_y;
 
-  get_beam_position( &beam_x, &beam_y );
+  get_beam_position( tstates, &beam_x, &beam_y );
 
   beam_x -= DISPLAY_BORDER_WIDTH_COLS;
   beam_y -= DISPLAY_BORDER_HEIGHT;
@@ -749,10 +749,16 @@ display_get_attr( int x, int y,
 static void
 push_border_change( int colour )
 {
+  /* OUT (#FE) writes the border colour during the I/O cycle of the OUT
+     instruction, but on entry here `tstates` is the value at the moment the
+     port write hook fires, three T-states before the instruction retires
+     (contend_port_late adds 2, then the trailing tstates++). Align the
+     recorded T-state with end-of-instruction so that mid-scanline border
+     transitions land where the beam is when the OUT completes. */
   int beam_x, beam_y;
   struct border_change_t *change;
 
-  get_beam_position( &beam_x, &beam_y );
+  get_beam_position( tstates + 3, &beam_x, &beam_y );
 
   if( beam_y >= DISPLAY_SCREEN_HEIGHT ) return;
 

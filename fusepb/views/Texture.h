@@ -22,25 +22,21 @@
 */
 
 #import <Cocoa/Cocoa.h>
-
-#include <OpenGL/gl.h>
-#include <OpenGL/glext.h>
-#include <OpenGL/glu.h>
+#import <Metal/Metal.h>
 
 #include "ui/cocoa/cocoadisplay.h"
 
 @interface Texture : NSObject
 {
   Cocoa_Texture texture;
-  GLuint textureId;
+  id<MTLTexture> mtlTexture;
 }
 -(id) initWithImageFile:(NSString*)filename withXOrigin:(int)x
-                     withYOrigin:(int)y;
+                     withYOrigin:(int)y
+                          device:(id<MTLDevice>)device;
 -(void) dealloc;
 
 -(Cocoa_Texture*) getTexture;
-@property (getter=getTextureId,readonly) GLuint textureId;
-
--(void) uploadIconTexture;
+@property (readonly) id<MTLTexture> mtlTexture;
 
 @end

@@ -23,102 +23,65 @@
 
 #import "Texture.h"
 
+#import <MetalKit/MTKTextureLoader.h>
+
 @implementation Texture
+
+@synthesize mtlTexture;
 
 -(id) initWithImageFile:(NSString*)filename withXOrigin:(int)x
                      withYOrigin:(int)y
+                          device:(id<MTLDevice>)device
 {
-  if( ( self = [super init] ) ) {
-    NSString *textureName = [[NSBundle mainBundle] pathForImageResource:filename];
-    if( !textureName )
-      NSLog(@"in initWithImageFile no textureName for filename:%@", filename);
-    NSURL *textureFile = [NSURL fileURLWithPath:textureName];
+  if( !( self = [super init] ) ) return nil;
 
-    CGImageSourceRef image_source =
-      CGImageSourceCreateWithURL( (CFURLRef)textureFile, nil );
-
-    CGImageRef image =
-      CGImageSourceCreateImageAtIndex( image_source, 0, nil );
-      
-    CFRelease( image_source );
-
-    texture.image_width = CGImageGetWidth( image );
-    texture.image_height = CGImageGetHeight( image );
-
-    texture.pixels = malloc( texture.image_width * texture.image_height * 4 );
-
-    CGColorSpaceRef color_space = CGColorSpaceCreateDeviceRGB();
-
-    CGContextRef context =
-      CGBitmapContextCreate( texture.pixels,
-                             texture.image_width,
-                             texture.image_height,
-                             8,
-                             texture.image_width * 4,
-                             color_space,
-                             kCGImageAlphaPremultipliedFirst );
-
-    CGContextDrawImage( context,
-                        CGRectMake(0, 0, texture.image_width, texture.image_height),
-                        image );
-
-    CGColorSpaceRelease( color_space );
-
-    CGImageRelease( image );
-
-    CGContextRelease( context );
-
-    texture.image_xoffset = x;
-    texture.image_yoffset = y;
-
-    [self uploadIconTexture];
+  NSString *texturePath =
+    [[NSBundle mainBundle] pathForImageResource:filename];
+  if( !texturePath ) {
+    NSLog( @"in initWithImageFile no texturePath for filename:%@", filename );
+    [self release];
+    return nil;
   }
+  NSURL *textureFile = [NSURL fileURLWithPath:texturePath];
+
+  MTKTextureLoader *loader =
+    [[MTKTextureLoader alloc] initWithDevice:device];
+
+  NSDictionary *options = @{
+    MTKTextureLoaderOptionSRGB : @NO,
+    MTKTextureLoaderOptionOrigin : MTKTextureLoaderOriginTopLeft,
+  };
+
+  NSError *err = nil;
+  mtlTexture = [loader newTextureWithContentsOfURL:textureFile
+                                           options:options
+                                             error:&err];
+  [loader release];
+  if( !mtlTexture ) {
+    NSLog( @"in initWithImageFile loader error: %@", err );
+    [self release];
+    return nil;
+  }
+
+  texture.image_width = (int)mtlTexture.width;
+  texture.image_height = (int)mtlTexture.height;
+  texture.image_xoffset = x;
+  texture.image_yoffset = y;
+  texture.pixels = NULL;
+  texture.dirty = NULL;
 
   return self;
 }
 
 -(void) dealloc
 {
-  glDeleteTextures(1, &textureId);
-  if (texture.pixels != NULL) {
-    free( texture.pixels );
-    texture.pixels = NULL;
-  }
+  [mtlTexture release];
   [super dealloc];
 }
 
 -(Cocoa_Texture*) getTexture
 {
   return &texture;
-}
-
-@synthesize textureId;
-
--(void) uploadIconTexture;
-{
-  glGenTextures( 1, &textureId );
-
-  /* Set memory alignment parameters for unpacking the bitmap. */
-  glPixelStorei( GL_UNPACK_ROW_LENGTH, texture.image_width );
-  glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
-
-  /* Specify the texture's properties. */
-  glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textureId );
-  glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-  glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-  glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-  glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-
-
-  /* Upload the texture bitmap. */
-  glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA8, texture.image_width,
-                texture.image_height, 0, GL_BGRA_EXT,
-#ifdef WORDS_BIGENDIAN
-                GL_UNSIGNED_INT_8_8_8_8_REV,
-#else                           /* #ifdef WORDS_BIGENDIAN */
-                GL_UNSIGNED_INT_8_8_8_8,
-#endif                          /* #ifdef WORDS_BIGENDIAN */
-                texture.pixels );
 }
 
 @end

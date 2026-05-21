@@ -231,6 +231,8 @@
 
 -(BOOL) windowShouldClose:(id)window;
 -(void) windowDidResignKey:(NSNotification *)notification;
+-(void) windowDidEnterFullScreen:(NSNotification *)notification;
+-(void) windowDidExitFullScreen:(NSNotification *)notification;
 
 -(void) windowChangedScreen:(NSNotification*)inNotification;
 

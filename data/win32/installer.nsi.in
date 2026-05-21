@@ -369,15 +369,21 @@ section "uninstall"
     Delete "$INSTDIR\COPYING.txt"
     Delete "$INSTDIR\fuse.exe"
     Delete "$INSTDIR\fuse.html"
+    Delete "$INSTDIR\LICENSES.txt"
     Delete "$INSTDIR\manual*.png"
     Delete "$INSTDIR\README.txt"
     Delete "$INSTDIR\README-win32.txt"
+    Delete "$INSTDIR\3rd-party\*"
+    RMDir  "$INSTDIR\3rd-party"
+    Delete "$INSTDIR\ui\widget\fuse.font"
+    RMDir  "$INSTDIR\ui\widget"
+    RMDir  "$INSTDIR\ui"
     Delete "$INSTDIR\*.dll"
-    RMDir "$INSTDIR"
 
     ; Delete the uninstaller and remove the uninstall keys for Windows
     DetailPrint "Deleting Uninstaller..."
     Delete "$INSTDIR\uninstall.exe"
+    RMDir "$INSTDIR"
     DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Fuse"
 
 sectionEnd

@@ -1,4 +1,4 @@
-/* sdl2_display_internal.c: SDL2 presentation helpers
+/* sdl2_ui.h: Routines for dealing with the SDL 2 user interface
    Copyright (c) 2026 Fredrick Meunier
 
    This program is free software; you can redistribute it and/or modify
@@ -7,6 +7,9 @@
    (at your option) any later version.
  */
 
-#include "config.h"
+#ifndef FUSE_SDL2_UI_H
+#define FUSE_SDL2_UI_H
 
-#include "sdl2_display_internal.h"
+void sdl2ui_set_cursor_visibility( int show_cursor );
+
+#endif

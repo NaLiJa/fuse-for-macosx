@@ -27,9 +27,8 @@
 #import "DebuggerController.h"
 #import "Texture.h"
 
-#include <OpenGL/gl.h>
-#include <OpenGL/glext.h>
-#include <OpenGL/glu.h>
+#import <Metal/Metal.h>
+#import <MetalKit/MetalKit.h>
 
 #include "fuse.h"
 #include "fusepb/main.h"
@@ -46,23 +45,48 @@
 #define QZ_5 0x16
 #define QZ_m 0x2E
 
-static const void *
-get_byte_pointer(void *bitmap)
+/* Vertex layout shared with DisplayShaders.metal. Position is in clip
+   space (-1..1); texture coordinate is normalized (0..1). */
+typedef struct {
+  float position[2];
+  float tex_coord[2];
+} DisplayVertex;
+
+/* Quad as two triangles, six vertices, top-left -> bottom-right. */
+static void
+fill_quad( DisplayVertex *out,
+           float x0, float y0, float x1, float y1,
+           float u0, float v0, float u1, float v1 )
 {
-  return bitmap;
+  out[0] = (DisplayVertex){ { x0, y0 }, { u0, v0 } };
+  out[1] = (DisplayVertex){ { x1, y0 }, { u1, v0 } };
+  out[2] = (DisplayVertex){ { x0, y1 }, { u0, v1 } };
+  out[3] = (DisplayVertex){ { x1, y0 }, { u1, v0 } };
+  out[4] = (DisplayVertex){ { x1, y1 }, { u1, v1 } };
+  out[5] = (DisplayVertex){ { x0, y1 }, { u0, v1 } };
 }
 
-static CVReturn MyDisplayLinkCallback (
-    CVDisplayLinkRef displayLink,
-    const CVTimeStamp *inNow,
-    const CVTimeStamp *inOutputTime,
-    CVOptionFlags flagsIn,
-    CVOptionFlags *flagsOut,
-    void *displayLinkContext)
+/* Convert a full frame of 16-bit BGR5A1 pixels (Spectrum framebuffer
+   format) to 32-bit BGRA8 packed in little-endian word order, suitable
+   for direct upload to MTLPixelFormatBGRA8Unorm via -replaceRegion:. */
+static void
+convert_bgr5a1_to_bgra8( const uint16_t *src, int src_pitch_words,
+                         uint32_t *dst, int w, int h )
 {
-  CVReturn error =
-        [(DisplayOpenGLView*) displayLinkContext displayFrame:inOutputTime];
-  return error;
+  for( int row = 0; row < h; row++ ) {
+    const uint16_t *srow = src + row * src_pitch_words;
+    uint32_t *drow = dst + row * w;
+    for( int col = 0; col < w; col++ ) {
+      uint16_t p = srow[col];
+      uint32_t b5 = p & 0x1F;
+      uint32_t g5 = (p >> 5) & 0x1F;
+      uint32_t r5 = (p >> 10) & 0x1F;
+      uint32_t b8 = (b5 << 3) | (b5 >> 2);
+      uint32_t g8 = (g5 << 3) | (g5 >> 2);
+      uint32_t r8 = (r5 << 3) | (r5 >> 2);
+      drow[col] = (0xFFu << 24) | (r8 << 16) | (g8 << 8) | b8;
+    }
+  }
 }
 
 static int
@@ -175,46 +199,66 @@ static DisplayOpenGLView *instance = nil;
 
 -(id) initWithFrame:(NSRect)frameRect
 {
-  /* Init pixel format attribs */
-  NSOpenGLPixelFormatAttribute attrs[] = {
-                                           NSOpenGLPFANoRecovery,
-                                           NSOpenGLPFAAccelerated,
-                                           NSOpenGLPFADoubleBuffer,
-                                           0
-                                         };
-
-  /* Get pixel format from OpenGL */
-  NSOpenGLPixelFormat* pixFmt = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
-  if (!pixFmt) {
-    NSLog(@"No pixel format -- exiting");
-    exit(1);
+  id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+  if( !device ) {
+    NSLog( @"Metal is not supported on this system -- exiting" );
+    exit( 1 );
   }
 
   if ( instance ) {
+    /* Defensive: this branch only triggers if something tries to construct
+       a second DisplayOpenGLView. The XIB instantiates this class once via
+       -initWithCoder:, so it should not be reached in normal use. */
     [self dealloc];
-    self = instance;
-  } else {
-    self = [super initWithFrame:frameRect pixelFormat:pixFmt];
-    instance = self;
-
-    buffered_screen_lock = [[NSLock alloc] init];
-
-    real_emulator = [[Emulator alloc] init];
+    [device release];
+    return instance;
   }
 
-  [pixFmt release];
+  self = [super initWithFrame:frameRect device:device];
+  instance = self;
 
-  [[self openGLContext] makeCurrentContext];
+  buffered_screen_lock = [[NSLock alloc] init];
+  real_emulator = [[Emulator alloc] init];
 
-  // Synchronize buffer swaps with vertical refresh rate
-  GLint swapInt = 1;
-  [[self openGLContext] setValues:&swapInt forParameter:NSOpenGLCPSwapInterval]; 
-    
-  /* Setup some basic OpenGL stuff */
-  glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
-  glTexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE );
-  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-  glColor4f(0.0f, 0.0f, 0.0f, 0.0f);
+  /* MTKView retains its device internally; keep an unretained ivar
+     for convenience. Balance MTLCreateSystemDefaultDevice's +1. */
+  mtlDevice = device;
+  [device release];
+
+  self.colorPixelFormat = MTLPixelFormatBGRA8Unorm;
+  self.clearColor = MTLClearColorMake( 0.0, 0.0, 0.0, 1.0 );
+  /* Use MTKView's built-in draw loop (a CADisplayLink under the hood)
+     so the view redraws automatically every vsync, including during
+     window resize and the fullscreen transition animation. Start paused
+     so -drawInMTKView: cannot fire before -createTexture: has set up
+     the screen MTLTextures; -displayLinkStart wakes the loop. */
+  self.paused = YES;
+  self.enableSetNeedsDisplay = NO;
+  self.delegate = self;
+
+  commandQueue = [mtlDevice newCommandQueue];
+
+  id<MTLLibrary> library = [mtlDevice newDefaultLibrary];
+  id<MTLFunction> vertFunc = [library newFunctionWithName:@"display_vertex"];
+  id<MTLFunction> fragFunc = [library newFunctionWithName:@"display_fragment"];
+
+  MTLRenderPipelineDescriptor *pipeDesc =
+    [[MTLRenderPipelineDescriptor alloc] init];
+  pipeDesc.vertexFunction = vertFunc;
+  pipeDesc.fragmentFunction = fragFunc;
+  pipeDesc.colorAttachments[0].pixelFormat = self.colorPixelFormat;
+
+  NSError *pipeErr = nil;
+  pipelineState = [mtlDevice newRenderPipelineStateWithDescriptor:pipeDesc
+                                                            error:&pipeErr];
+  [pipeDesc release];
+  [vertFunc release];
+  [fragFunc release];
+  [library release];
+  if( !pipelineState ) {
+    NSLog( @"Failed to create Metal pipeline state: %@", pipeErr );
+    exit( 1 );
+  }
 
   greenCassette = [Texture alloc];
   redCassette = [Texture alloc];
@@ -258,9 +302,6 @@ static DisplayOpenGLView *instance = nil;
 
   currentScreenTex = 0;
 
-  statusbar_updated = NO;
-  isResizing = NO;
-  
   [self registerForDraggedTypes:[NSArray arrayWithObjects: NSFilenamesPboardType, nil]];
 
   return self;
@@ -275,7 +316,15 @@ static DisplayOpenGLView *instance = nil;
   if (buffered_screen_lock)
     [buffered_screen_lock release];
   buffered_screen_lock = nil;
-  
+
+  [pipelineState release];
+  [commandQueue release];
+  if( conversionBuffer ) {
+    free( conversionBuffer );
+    conversionBuffer = NULL;
+    conversionBufferPixels = 0;
+  }
+
   [super dealloc];
 }
 
@@ -308,26 +357,6 @@ static DisplayOpenGLView *instance = nil;
     NSWindowCollectionBehaviorFullScreenPrimary];
 
   view_lock = [[NSLock alloc] init];
-
-  CVReturn            error = kCVReturnSuccess;
-  CGDirectDisplayID   displayID = CGMainDisplayID();
- 
-  mainViewDisplayID = displayID;
-
-  error = CVDisplayLinkCreateWithCGDisplay( displayID, &displayLink );
-  if( error ) {
-    NSLog( @"DisplayLink created with error:%d", error );
-    displayLink = NULL;
-    return;
-  }
-  error = CVDisplayLinkSetOutputCallback( displayLink,
-                                          MyDisplayLinkCallback, self );
-  if( error ) {
-    NSLog( @"Callback created with error:%d", error );
-    return;
-  }
-
-  displayLinkRunning = NO;
 }
 
 - (void)windowWillClose:(NSNotification *)notification
@@ -382,24 +411,19 @@ static DisplayOpenGLView *instance = nil;
 
   /* Colour first image green */
   (void)[greenTexture initWithImageFile:filename withXOrigin:x
-                          withYOrigin:y];
+                          withYOrigin:y device:mtlDevice];
 
   filename = [NSString stringWithFormat:@"%@_red", name];
 
   /* Colour second image red */
   (void)[redTexture initWithImageFile:filename withXOrigin:x
-                        withYOrigin:y];
+                        withYOrigin:y device:mtlDevice];
 }
 
--(void) setNeedsDisplayYes
-{
-  [super setNeedsDisplay:YES];
-}
-
--(void) blitIcon:(Texture*)iconTexture
+-(void) encodeIcon:(Texture*)iconTexture
+           encoder:(id<MTLRenderCommandEncoder>)encoder
 {
   Cocoa_Texture* texture = [iconTexture getTexture];
-  GLuint textureName = [iconTexture getTextureId];
 
   /* Map pixel icon position to appropriate position on -1.0 to 1.0 canvas */
   float target_x1 = texture->image_xoffset * 2.0f / (float)DISPLAY_ASPECT_WIDTH
@@ -411,34 +435,24 @@ static DisplayOpenGLView *instance = nil;
   float target_y2 = 1.0f - ( texture->image_yoffset + texture->image_height )
                     * 2.0f / (float)DISPLAY_SCREEN_HEIGHT;
 
-  /* Bind and draw icon */
-  glBindTexture( GL_TEXTURE_RECTANGLE_ARB, textureName );
+  DisplayVertex verts[6];
+  fill_quad( verts,
+             target_x1, target_y1, target_x2, target_y2,
+             0.0f, 0.0f, 1.0f, 1.0f );
 
-  glBegin( GL_QUADS );
-
-    glTexCoord2f( (float)texture->image_width, 0.0f );
-    glVertex2f( target_x2, target_y1 );
-
-    glTexCoord2f( (float)texture->image_width, (float)texture->image_height );
-    glVertex2f( target_x2, target_y2 );
-
-    glTexCoord2f( 0.0f, (float)texture->image_height );
-    glVertex2f( target_x1, target_y2 );
-
-    glTexCoord2f( 0.0f, 0.0f );
-    glVertex2f( target_x1, target_y1 );
-
-  glEnd();
+  [encoder setVertexBytes:verts length:sizeof(verts) atIndex:0];
+  [encoder setFragmentTexture:[iconTexture mtlTexture] atIndex:0];
+  [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
 }
 
--(void) iconOverlay
+-(void) encodeIconOverlay:(id<MTLRenderCommandEncoder>)encoder
 {
   switch( disk_state ) {
   case UI_STATUSBAR_STATE_ACTIVE:
-    [self blitIcon:greenDisk];
+    [self encodeIcon:greenDisk encoder:encoder];
     break;
   case UI_STATUSBAR_STATE_INACTIVE:
-    [self blitIcon:redDisk];
+    [self encodeIcon:redDisk encoder:encoder];
     break;
   case UI_STATUSBAR_STATE_NOT_AVAILABLE:
     break;
@@ -446,10 +460,10 @@ static DisplayOpenGLView *instance = nil;
 
   switch( mdr_state ) {
   case UI_STATUSBAR_STATE_ACTIVE:
-    [self blitIcon:greenMdr];
+    [self encodeIcon:greenMdr encoder:encoder];
     break;
   case UI_STATUSBAR_STATE_INACTIVE:
-    [self blitIcon:redMdr];
+    [self encodeIcon:redMdr encoder:encoder];
     break;
   case UI_STATUSBAR_STATE_NOT_AVAILABLE:
     break;
@@ -457,25 +471,33 @@ static DisplayOpenGLView *instance = nil;
 
   switch( tape_state ) {
   case UI_STATUSBAR_STATE_ACTIVE:
-    [self blitIcon:greenCassette];
+    [self encodeIcon:greenCassette encoder:encoder];
     break;
   case UI_STATUSBAR_STATE_INACTIVE:
   case UI_STATUSBAR_STATE_NOT_AVAILABLE:
-    [self blitIcon:redCassette];
+    [self encodeIcon:redCassette encoder:encoder];
     break;
   }
 }
 
--(void) drawRect:(NSRect)aRect
+/* MTKViewDelegate method. Called by MTKView's built-in CADisplayLink at
+   the display's vsync. Uploads any pending dirty pixels, then encodes
+   the render pass for the most-recently uploaded screen MTLTexture
+   plus the activity icons if the statusbar is on, and presents. */
+-(void) drawInMTKView:(MTKView *)view
 {
+  [self uploadDirtyToTexture];
+
   [view_lock lock];
 
-  [[self openGLContext] makeCurrentContext];
+  if( !screenTexInitialised ) {
+    [view_lock unlock];
+    return;
+  }
 
-  /* Clear buffer, needs to be done each frame */
-  glClear( GL_COLOR_BUFFER_BIT );
-
-  if (!screenTexInitialised) {
+  MTLRenderPassDescriptor *passDesc = view.currentRenderPassDescriptor;
+  id<CAMetalDrawable> drawable = view.currentDrawable;
+  if( !passDesc || !drawable ) {
     [view_lock unlock];
     return;
   }
@@ -484,106 +506,55 @@ static DisplayOpenGLView *instance = nil;
      In windowed mode the window's contentAspectRatio constraint keeps
      the view 4:3 and get_offset returns zero margins (no-op). In any
      fullscreen mode the view fills the display and get_offset produces
-     pillarbox or letterbox margins as appropriate. */
+     pillarbox or letterbox margins as appropriate. get_offset returns
+     the vertical (top/bottom) margin in pixels and writes the horizontal
+     (left/right) margin into its out-parameter. */
   NSRect rect = [self bounds];
-  float width_adjustment = 0.0;
-  int border_x_offset =
+  float horizontal_margin = 0.0f;
+  int vertical_margin =
     get_offset( rect.size.width, rect.size.height,
                 screenTex[currentScreenTex].image_width,
                 screenTex[currentScreenTex].image_height,
-                &width_adjustment );
-  int border_y_offset = width_adjustment;
+                &horizontal_margin );
 
-  /* Bind, update and draw new image */
-  glBindTexture( GL_TEXTURE_RECTANGLE_ARB, screenTexId[currentScreenTex] );
-  
-  glBegin( GL_QUADS );
-    glTexCoord2f( (float)(screenTex[currentScreenTex].image_width +
-                          screenTex[currentScreenTex].image_xoffset + border_y_offset),
-                  (float)(screenTex[currentScreenTex].image_yoffset + border_x_offset)
-                  );
-    glVertex2f( 1.0f, 1.0f );
+  Cocoa_Texture *cur = &screenTex[currentScreenTex];
+  float fw = (float)cur->full_width;
+  float fh = (float)cur->full_height;
+  float u0 = (cur->image_xoffset - horizontal_margin) / fw;
+  float u1 = (cur->image_width + cur->image_xoffset + horizontal_margin) / fw;
+  float v0 = (cur->image_yoffset + vertical_margin) / fh;
+  float v1 = (cur->image_height + cur->image_yoffset - vertical_margin) / fh;
 
-    glTexCoord2f( (float)(screenTex[currentScreenTex].image_width +
-                          screenTex[currentScreenTex].image_xoffset + border_y_offset),
-                  (float)(screenTex[currentScreenTex].image_height +
-                          screenTex[currentScreenTex].image_yoffset - border_x_offset)
-                  );
-    glVertex2f( 1.0f, -1.0f );
+  DisplayVertex mainVerts[6];
+  fill_quad( mainVerts, -1.0f, 1.0f, 1.0f, -1.0f, u0, v0, u1, v1 );
 
-    glTexCoord2f( (float)screenTex[currentScreenTex].image_xoffset - border_y_offset,
-                  (float)(screenTex[currentScreenTex].image_height +
-                          screenTex[currentScreenTex].image_yoffset - border_x_offset)
-                  );
-    glVertex2f( -1.0f, -1.0f );
+  id<MTLCommandBuffer> cmdBuf = [commandQueue commandBuffer];
+  id<MTLRenderCommandEncoder> encoder =
+    [cmdBuf renderCommandEncoderWithDescriptor:passDesc];
+  [encoder setRenderPipelineState:pipelineState];
 
-    glTexCoord2f( (float)screenTex[currentScreenTex].image_xoffset - border_y_offset,
-                  (float)(screenTex[currentScreenTex].image_yoffset + border_x_offset)
-                  );
-    glVertex2f( -1.0f, 1.0f );
-  glEnd();
+  [encoder setVertexBytes:mainVerts length:sizeof(mainVerts) atIndex:0];
+  [encoder setFragmentTexture:screenTexMTL[currentScreenTex] atIndex:0];
+  [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
 
-  if ( settings_current.statusbar ) [self iconOverlay];
+  if( settings_current.statusbar ) [self encodeIconOverlay:encoder];
 
-  /* Swap buffer to screen */
-  [[self openGLContext] flushBuffer];
-
-  statusbar_updated = NO;
+  [encoder endEncoding];
+  [cmdBuf presentDrawable:drawable];
+  [cmdBuf commit];
 
   [view_lock unlock];
 }
 
--(void) doReshape
+-(void) mtkView:(MTKView *)view drawableSizeWillChange:(CGSize)size
 {
-  [view_lock lock];
-  
-  /* Set resize flag to block rendering during reshape */
-  isResizing = YES;
-  
-  /* Stop display link during reshape to prevent drawing with invalid context */
-  [self displayLinkStop];
-  
-  NSRect rect;
-
-  NSOpenGLContext *context = [self openGLContext];
-  if (context) {
-    [context makeCurrentContext];
-
-    rect = [self bounds];
-
-    glViewport( 0, 0, (int) rect.size.width, (int) rect.size.height );
-
-    glMatrixMode( GL_PROJECTION );
-    glLoadIdentity();
-
-    glMatrixMode( GL_MODELVIEW );
-    glLoadIdentity();
-    
-    [context update];
-  }
-
-  statusbar_updated = YES;
-  
-  /* Clear resize flag and restart display link after reshape completes */
-  isResizing = NO;
-  [self displayLinkStart];
-  
-  [view_lock unlock];
-}
-
-/* scrolled, moved or resized */
--(void) reshape
-{
-  [super reshape];
-  /* Wait for reshape to complete to prevent queuing multiple reshape operations
-     during slow drag resize, which can cause race conditions */
-  [self performSelectorOnMainThread:@selector(doReshape) withObject:self waitUntilDone:YES];
+  /* The drawable resize is handled by MTKView itself; nothing to do
+     beyond accepting the new size. The pixel art is sampled at whatever
+     drawable resolution the view reports. */
 }
 
 -(void) destroyTexture
 {
-  GLuint i;
-
   if (!screenTexInitialised)
     return;
 
@@ -591,9 +562,10 @@ static DisplayOpenGLView *instance = nil;
 
   [self displayLinkStop];
 
-  glDeleteTextures( MAX_SCREEN_BUFFERS, screenTexId );
-  for(i = 0; i < MAX_SCREEN_BUFFERS; i++)
+  for( unsigned int i = 0; i < MAX_SCREEN_BUFFERS; i++ )
   {
+    [screenTexMTL[i] release];
+    screenTexMTL[i] = nil;
     free( screenTex[i].pixels );
     screenTex[i].pixels = NULL;
     if( screenTex[i].dirty )
@@ -607,19 +579,8 @@ static DisplayOpenGLView *instance = nil;
 -(void) createTexture:(Cocoa_Texture*)newScreen
 {
   [view_lock lock];
-  GLuint i;
 
-  [[self openGLContext] makeCurrentContext];
-  /* -update must only run on the main thread. When called from the
-     emulation thread (e.g. machine change during openFile:), skip it;
-     the drawable geometry is already valid from the last reshape. */
-  if ([NSThread isMainThread]) {
-    [self update];
-  }
-  
-  glGenTextures( MAX_SCREEN_BUFFERS, screenTexId );
-
-  for(i = 0; i < MAX_SCREEN_BUFFERS; i++)
+  for( unsigned int i = 0; i < MAX_SCREEN_BUFFERS; i++ )
   {
     screenTex[i].full_width = newScreen->full_width;
     screenTex[i].full_height = newScreen->full_height;
@@ -632,42 +593,35 @@ static DisplayOpenGLView *instance = nil;
     if( !screenTex[i].pixels ) {
       NSLog( @"%s: couldn't create screenTex[%ud].pixels\n", fuse_progname,
              (unsigned int)i );
+      [view_lock unlock];
       return;
     }
     screenTex[i].pitch = screenTex[i].full_width * sizeof(uint16_t);
 
-    glDisable( GL_TEXTURE_2D );
-    glEnable( GL_TEXTURE_RECTANGLE_ARB );
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, screenTexId[i] );
-
-#if 0
-    // These should increase texture upload performance, but instead seem to cause
-    // issues with some ATI drivers (and perhaps GMA too), so I'm disabling for now
-    // maybe revisit come 10.7
-    glTextureRangeAPPLE( GL_TEXTURE_RECTANGLE_ARB,
-                         screenTex[i].full_width * screenTex[i].pitch,
-                         screenTex[i].pixels );
-
-    glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_STORAGE_HINT_APPLE,
-                     GL_STORAGE_CACHED_APPLE );
-    glPixelStorei( GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE );
-#endif
-    /* TODO: honour settings_current.bilinear_filter again and re-enable the
-       Bilinear checkbox in PreferencesController -awakeFromNib once
-       bilinear filtering is fully working. Hard-coded to nearest-neighbour
-       for now so the broken path is not reached for users with the setting
-       saved on. */
-    GLint filter = GL_NEAREST;
-    glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, filter );
-    glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, filter );
-    glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-    glTexParameteri( GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-    glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 );
-
-    glTexImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA, screenTex[i].full_width,
-                  screenTex[i].full_height, 0, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV,
-                  screenTex[i].pixels );
+    MTLTextureDescriptor *desc = [MTLTextureDescriptor
+      texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                   width:screenTex[i].full_width
+                                  height:screenTex[i].full_height
+                               mipmapped:NO];
+    desc.storageMode = MTLStorageModeShared;
+    desc.usage = MTLTextureUsageShaderRead;
+    screenTexMTL[i] = [mtlDevice newTextureWithDescriptor:desc];
+    if( !screenTexMTL[i] ) {
+      NSLog( @"%s: couldn't create screenTexMTL[%ud]\n", fuse_progname,
+             (unsigned int)i );
+      [view_lock unlock];
+      return;
+    }
   }
+
+  /* Reusable conversion buffer sized for one full frame. */
+  size_t needed_pixels = (size_t)newScreen->full_width * newScreen->full_height;
+  if( conversionBufferPixels < needed_pixels ) {
+    free( conversionBuffer );
+    conversionBuffer = malloc( needed_pixels * sizeof(uint32_t) );
+    conversionBufferPixels = conversionBuffer ? needed_pixels : 0;
+  }
+
   screenTexInitialised = YES;
 
   [self displayLinkStart];
@@ -1066,27 +1020,18 @@ static DisplayOpenGLView *instance = nil;
 -(void) setDiskState:(NSNumber*)state
 {
   disk_state = [state unsignedCharValue];
-  [view_lock lock];
-  statusbar_updated = YES;
-  [view_lock unlock];
   [[FuseController singleton] setDiskState:state];
 }
 
 -(void) setTapeState:(NSNumber*)state
 {
   tape_state = [state unsignedCharValue];
-  [view_lock lock];
-  statusbar_updated = YES;
-  [view_lock unlock];
   [[FuseController singleton] setTapeState:state];
 }
 
 -(void) setMdrState:(NSNumber*)state
 {
   mdr_state = [state unsignedCharValue];
-  [view_lock lock];
-  statusbar_updated = YES;
-  [view_lock unlock];
   [[FuseController singleton] setMdrState:state];
 }
 
@@ -1195,103 +1140,6 @@ static DisplayOpenGLView *instance = nil;
   return YES;
 }
 
-/* Minimise code from example code posted by user arekkusu
- * (http://www.idevgames.com) at http://www.idevgames.com in thread
- * "Properly minimizing an OpenGL view"
- */
--(void) copyGLtoQuartz
-{
-  NSSize  size = [self frame].size;
-  GLfloat zero = 0.0f;
-  long    rowbytes = size.width * 4;
-  rowbytes = (rowbytes + 3)& ~3;      // ctx rowbytes is always multiple of 4, per glGrab
-  unsigned char* bitmap = malloc(rowbytes * size.height);
- 
-  // Stuffing around with OpenGL context - lock view while we do 
-  [view_lock lock];
-
-  [[NSOpenGLContext currentContext] makeCurrentContext];
-  glFinish();                         // finish any pending OpenGL commands
-  glPushAttrib(GL_ALL_ATTRIB_BITS);   // reset all properties that affect glReadPixels, in case app was using them
-  glDisable(GL_COLOR_TABLE);
-  glDisable(GL_CONVOLUTION_1D);
-  glDisable(GL_CONVOLUTION_2D);
-  glDisable(GL_HISTOGRAM);
-  glDisable(GL_MINMAX);
-  glDisable(GL_POST_COLOR_MATRIX_COLOR_TABLE);
-  glDisable(GL_POST_CONVOLUTION_COLOR_TABLE);
-  glDisable(GL_SEPARABLE_2D);
-  
-  glPixelMapfv(GL_PIXEL_MAP_R_TO_R, 1, &zero);
-  glPixelMapfv(GL_PIXEL_MAP_G_TO_G, 1, &zero);
-  glPixelMapfv(GL_PIXEL_MAP_B_TO_B, 1, &zero);
-  glPixelMapfv(GL_PIXEL_MAP_A_TO_A, 1, &zero);
-  
-  glPixelStorei(GL_PACK_SWAP_BYTES, 0);
-  glPixelStorei(GL_PACK_LSB_FIRST, 0);
-  glPixelStorei(GL_PACK_IMAGE_HEIGHT, 0);
-  glPixelStorei(GL_PACK_ALIGNMENT, 4); // force 4-byte alignment from RGBA framebuffer
-  glPixelStorei(GL_PACK_ROW_LENGTH, 0);
-  glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
-  glPixelStorei(GL_PACK_SKIP_ROWS, 0);
-  glPixelStorei(GL_PACK_SKIP_IMAGES, 0);
-  
-  glPixelTransferi(GL_MAP_COLOR, 0);
-  glPixelTransferf(GL_RED_SCALE, 1.0f);
-  glPixelTransferf(GL_RED_BIAS, 0.0f);
-  glPixelTransferf(GL_GREEN_SCALE, 1.0f);
-  glPixelTransferf(GL_GREEN_BIAS, 0.0f);
-  glPixelTransferf(GL_BLUE_SCALE, 1.0f);
-  glPixelTransferf(GL_BLUE_BIAS, 0.0f);
-  glPixelTransferf(GL_ALPHA_SCALE, 1.0f);
-  glPixelTransferf(GL_ALPHA_BIAS, 0.0f);
-  glPixelTransferf(GL_POST_COLOR_MATRIX_RED_SCALE, 1.0f);
-  glPixelTransferf(GL_POST_COLOR_MATRIX_RED_BIAS, 0.0f);
-  glPixelTransferf(GL_POST_COLOR_MATRIX_GREEN_SCALE, 1.0f);
-  glPixelTransferf(GL_POST_COLOR_MATRIX_GREEN_BIAS, 0.0f);
-  glPixelTransferf(GL_POST_COLOR_MATRIX_BLUE_SCALE, 1.0f);
-  glPixelTransferf(GL_POST_COLOR_MATRIX_BLUE_BIAS, 0.0f);
-  glPixelTransferf(GL_POST_COLOR_MATRIX_ALPHA_SCALE, 1.0f);
-  glPixelTransferf(GL_POST_COLOR_MATRIX_ALPHA_BIAS, 0.0f);
-  glReadPixels(0, 0, size.width, size.height, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, bitmap);
-  glPopAttrib();
-
-  [view_lock unlock];
-
-  [self lockFocus];
-  // create a CGImageRef from the memory block
-  CGDataProviderDirectCallbacks gProviderCallbacks = { 0, get_byte_pointer, NULL, NULL, NULL };
-  CGDataProviderRef provider = CGDataProviderCreateDirect(bitmap, rowbytes * size.height, &gProviderCallbacks);
-  CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
-  CGImageRef cgImage = CGImageCreate(size.width, size.height, 8, 32, rowbytes, cs,
-      kCGBitmapByteOrder32Host | kCGImageAlphaNoneSkipFirst, provider, NULL, NO,
-      kCGRenderingIntentDefault);
-
-  // composite the CGImage into the view
-  CGContextRef gc = [[NSGraphicsContext currentContext] graphicsPort];
-  CGContextDrawImage(gc, CGRectMake(0, 0, size.width, size.height), cgImage);
-
-  // clean up
-  CGImageRelease(cgImage);
-  CGDataProviderRelease(provider);
-  CGColorSpaceRelease(cs);
-  free(bitmap);
-
-  [self unlockFocus];
-  [[self window] flushWindow];
-}
-
--(void) windowWillMiniaturize:(NSNotification *)aNotification
-{
-  [self copyGLtoQuartz];	
-  [[self window] setOpaque:NO]; // required to make the Quartz underlay and the window shadow appear correctly
-}
-
--(void) windowDidMiniaturize:(NSNotification *)notification
-{
-  [[self window] setOpaque:YES];
-}
-
 -(BOOL) windowShouldClose:(id)window
 {
   /* Funnel the red-button / Cmd+W close through the same exit path as Cmd+Q
@@ -1303,136 +1151,128 @@ static DisplayOpenGLView *instance = nil;
   return NO;
 }
 
--(CVReturn) displayFrame:(const CVTimeStamp *)timeStamp
+-(void) uploadDirtyToTexture
 {
   int i;
   PIG_dirtytable *workdirty = NULL;
- 
-  /* Skip rendering if window is being resized to prevent crashes */
-  [view_lock lock];
-  BOOL resizing = isResizing;
-  [view_lock unlock];
-  
-  if (resizing) {
-    return kCVReturnSuccess;
-  }
- 
+
   // Is it possible that while waiting for a lock the emulator is stopped?
   // or already holds the lock? If so give up on updating the frame rather
   // than deadlock on getting the lock - may mean that we miss some screen
   // updates if we are invoked while the buffered screen is being updated
   if( !buffered_screen_lock || [buffered_screen_lock tryLock] == NO ) {
-    return kCVReturnSuccess;
+    return;
   }
 
   /* Check if buffered_screen.dirty is initialized - it might be NULL during initialization or cleanup */
-  if( !buffered_screen.dirty ) {
+  if( !buffered_screen.dirty || buffered_screen.dirty->count == 0 ) {
     [buffered_screen_lock unlock];
-    return kCVReturnSuccess;
+    return;
   }
 
-  if( buffered_screen.dirty->count == 0 && !statusbar_updated ) {
-    [buffered_screen_lock unlock];
-    return kCVReturnSuccess;
-  }
+  /* Cover the screen-texture swap and the GPU upload. */
+  [view_lock lock];
 
-  if( buffered_screen.dirty->count > 0 ) {
-
-    // Make sure we lock the view if we are going to update the textures so
-    // there is no concurrent access to the OpenGL context as the displaylink
-    // callback is not on the main thread where resizing-related drawing will
-    // occur, also cover the screen texture swap
-    [view_lock lock];
-
-    // Double-check resize flag after acquiring lock - resize might have started
-    if (isResizing) {
-      [view_lock unlock];
-      [buffered_screen_lock unlock];
-      return kCVReturnSuccess;
-    }
-
-    // Check if textures are initialized - they may be destroyed during window resize
-    if (!screenTexInitialised) {
-      [view_lock unlock];
-      [buffered_screen_lock unlock];
-      return kCVReturnSuccess;
-    }
-
-    if (screenTex[currentScreenTex].dirty)
-      pig_dirty_copy( &workdirty, screenTex[currentScreenTex].dirty );
-
-    currentScreenTex = !currentScreenTex;
-
-    pig_dirty_copy( &screenTex[currentScreenTex].dirty, buffered_screen.dirty );
-    
-    if( workdirty )
-      pig_dirty_merge(workdirty, screenTex[currentScreenTex].dirty);
-    else
-      pig_dirty_copy(&workdirty, screenTex[currentScreenTex].dirty);
-    
-    /* Draw texture to screen */
-    for(i = 0; i < workdirty->count; ++i)
-      copy_area( &screenTex[currentScreenTex], &buffered_screen,
-                 workdirty->rects + i );
-    
-    buffered_screen.dirty->count = 0;
-    
-    pig_dirty_close( workdirty );
-
-    [[self openGLContext] makeCurrentContext];
-    
-    /* Bind, update and draw new image */
-    glBindTexture( GL_TEXTURE_RECTANGLE_ARB, screenTexId[currentScreenTex] );
-    
-    glTexSubImage2D( GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0,
-                     screenTex[currentScreenTex].full_width,
-                     screenTex[currentScreenTex].full_height, GL_BGRA,
-                     GL_UNSIGNED_SHORT_1_5_5_5_REV,
-                     screenTex[currentScreenTex].pixels );
-
+  if( !screenTexInitialised ) {
     [view_lock unlock];
+    [buffered_screen_lock unlock];
+    return;
   }
 
+  if( screenTex[currentScreenTex].dirty )
+    pig_dirty_copy( &workdirty, screenTex[currentScreenTex].dirty );
+
+  currentScreenTex = !currentScreenTex;
+
+  pig_dirty_copy( &screenTex[currentScreenTex].dirty, buffered_screen.dirty );
+
+  if( workdirty )
+    pig_dirty_merge( workdirty, screenTex[currentScreenTex].dirty );
+  else
+    pig_dirty_copy( &workdirty, screenTex[currentScreenTex].dirty );
+
+  /* Sync the CPU shadow buffer against the source for every rect that
+     may have changed since this buffer was last current. */
+  for( i = 0; i < workdirty->count; ++i )
+    copy_area( &screenTex[currentScreenTex], &buffered_screen,
+               workdirty->rects + i );
+
+  buffered_screen.dirty->count = 0;
+
+  pig_dirty_close( workdirty );
+
+  /* Convert the entire CPU-side buffer from 16-bit BGR5A1 to 32-bit
+     BGRA8 in the reusable conversion buffer, then upload the full
+     texture in one call. This matches the legacy OpenGL path
+     (`glTexSubImage2D` over `full_width` x `full_height` every frame)
+     and keeps the GPU side in sync regardless of which regions the
+     emulator core flagged as dirty -- the dirty list in `dirty.c` is
+     used for CPU-side copy_area accounting, not for tracking what
+     the GPU texture needs uploaded. */
+  Cocoa_Texture *cur = &screenTex[currentScreenTex];
+  int src_pitch_words = cur->pitch / (int)sizeof(uint16_t);
+  size_t total_pixels = (size_t)cur->full_width * (size_t)cur->full_height;
+  if( total_pixels > conversionBufferPixels ) {
+    free( conversionBuffer );
+    conversionBuffer = malloc( total_pixels * sizeof(uint32_t) );
+    conversionBufferPixels = conversionBuffer ? total_pixels : 0;
+  }
+  if( conversionBuffer ) {
+    convert_bgr5a1_to_bgra8( (const uint16_t *)cur->pixels, src_pitch_words,
+                             conversionBuffer,
+                             cur->full_width, cur->full_height );
+
+    MTLRegion region =
+      MTLRegionMake2D( 0, 0, cur->full_width, cur->full_height );
+    [screenTexMTL[currentScreenTex]
+      replaceRegion:region
+        mipmapLevel:0
+          withBytes:conversionBuffer
+        bytesPerRow:(NSUInteger)cur->full_width * sizeof(uint32_t)];
+  }
+
+  [view_lock unlock];
   [buffered_screen_lock unlock];
-
-  NSAutoreleasePool *pool = [NSAutoreleasePool new];
-  [self drawRect:NSZeroRect];
-  [pool release];
-
-  return kCVReturnSuccess;
 }
 
 -(void) windowChangedScreen:(NSNotification*)inNotification
 {
-  NSWindow *window = [self window];
-  CGDirectDisplayID displayID = (CGDirectDisplayID)[[[[window screen]
-         deviceDescription] objectForKey:@"NSScreenNumber"] intValue];
-  if((displayID != 0) && (mainViewDisplayID != displayID))
-  {
-    CVDisplayLinkSetCurrentCGDisplay(displayLink, displayID);
-    mainViewDisplayID = displayID;
-  }
+  /* CADisplayLink follows the view's screen automatically. Kept as a
+     stub so any existing notification wiring continues to work. */
+}
+
+/* -[MTKView setPaused:] mutates AppKit/MetalKit state that lives on the
+   main thread. -createTexture: and -destroyTexture run on the emulator
+   worker thread via uidisplay_init/uidisplay_end, so hop to main before
+   toggling self.paused. -performSelectorOnMainThread: retains the
+   receiver until the selector runs, which avoids a use-after-free if the
+   view is dealloc'd before a pending hop fires. Direct invocation when
+   already on main keeps the common case (UI-driven pause/unpause)
+   synchronous. */
+-(void) _setPausedMain:(NSNumber *)paused
+{
+  self.paused = [paused boolValue];
 }
 
 -(void) displayLinkStop
 {
-  if( displayLinkRunning == YES ) {
-    CVReturn error = CVDisplayLinkStop( displayLink );
-    if( error ) {
-      NSLog( @"error stopping displayLink:%d", error );
-    }
-    displayLinkRunning = NO;
+  if( [NSThread isMainThread] ) {
+    self.paused = YES;
+  } else {
+    [self performSelectorOnMainThread:@selector(_setPausedMain:)
+                           withObject:@YES
+                        waitUntilDone:NO];
   }
 }
 
 -(void) displayLinkStart
 {
-  if( displayLinkRunning == NO ) {
-    CVReturn error = CVDisplayLinkStart( displayLink );
-    if( error ) {
-      NSLog( @"error starting displayLink:%d", error );
-    }
-    displayLinkRunning = YES;
+  if( [NSThread isMainThread] ) {
+    self.paused = NO;
+  } else {
+    [self performSelectorOnMainThread:@selector(_setPausedMain:)
+                           withObject:@NO
+                        waitUntilDone:NO];
   }
 }
 

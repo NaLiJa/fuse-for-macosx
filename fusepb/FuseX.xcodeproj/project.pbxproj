@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		576F061291E1888735FB9D38 /* FuseQLPreview.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 2395678A67FCB7B7DAFF9A83 /* FuseQLPreview.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		70561DA4F03E4F3DA5B85553 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAA54F20E902456BACB24998 /* MetalKit.framework */; };
+		B2D0915DE32D43E89E59E3EF /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8287F6EDEBAC4FFA8708CC4E /* Metal.framework */; };
 		B6013812164692F5005FD3AE /* Fuse.iconset in Resources */ = {isa = PBXBuildFile; fileRef = B6013811164692F5005FD3AE /* Fuse.iconset */; };
 		B61159BF0EEE99D50029FEA3 /* Graphics_Filter.png in Resources */ = {isa = PBXBuildFile; fileRef = B61159BE0EEE99D50029FEA3 /* Graphics_Filter.png */; };
 		B61159C10EEE99E20029FEA3 /* Machine.png in Resources */ = {isa = PBXBuildFile; fileRef = B61159C00EEE99E20029FEA3 /* Machine.png */; };
@@ -195,8 +197,6 @@
 		B6A6F0DA0B3D141B000B88E9 /* cocoaui.m in Sources */ = {isa = PBXBuildFile; fileRef = B6A6F0D90B3D141B000B88E9 /* cocoaui.m */; };
 		B6A6F0EE0B3D5F9E000B88E9 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6A6F0ED0B3D5F9E000B88E9 /* CoreAudio.framework */; };
 		B6A6F0F30B3D602F000B88E9 /* AudioUnit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6A6F0F20B3D602F000B88E9 /* AudioUnit.framework */; };
-		B2D0915DE32D43E89E59E3EF /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8287F6EDEBAC4FFA8708CC4E /* Metal.framework */; };
-		70561DA4F03E4F3DA5B85553 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAA54F20E902456BACB24998 /* MetalKit.framework */; };
 		B6A6F10E0B3D6360000B88E9 /* cocoaerror.m in Sources */ = {isa = PBXBuildFile; fileRef = B6A6F10D0B3D6360000B88E9 /* cocoaerror.m */; };
 		B6A6F1200B3EA737000B88E9 /* cocoascreenshot.m in Sources */ = {isa = PBXBuildFile; fileRef = B6A6F11E0B3EA737000B88E9 /* cocoascreenshot.m */; };
 		B6B076B30B59FE9A00D4F95C /* Emulator.m in Sources */ = {isa = PBXBuildFile; fileRef = B6B076B10B59FE9A00D4F95C /* Emulator.m */; };
@@ -222,7 +222,6 @@
 		B6CE3A130CD217C2005ACDC8 /* pentagon1024.c in Sources */ = {isa = PBXBuildFile; fileRef = B6CE3A120CD217C2005ACDC8 /* pentagon1024.c */; };
 		B6CE7F420B2830A300EB65B3 /* cocoajoystick.c in Sources */ = {isa = PBXBuildFile; fileRef = B6CE7F3C0B2830A300EB65B3 /* cocoajoystick.c */; };
 		B6CE7FCE0B28FBD600EB65B3 /* DisplayOpenGLView.m in Sources */ = {isa = PBXBuildFile; fileRef = B6CE7FCC0B28FBD600EB65B3 /* DisplayOpenGLView.m */; };
-		CC2086963F8A491084EEBE3B /* DisplayShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 2BDC12F02C4E48F98494D156 /* DisplayShaders.metal */; };
 		B6D0E1031CFD547C00202683 /* didaktik.c in Sources */ = {isa = PBXBuildFile; fileRef = B6D0E1011CFD547C00202683 /* didaktik.c */; };
 		B6D0E1061CFD549200202683 /* usource.c in Sources */ = {isa = PBXBuildFile; fileRef = B6D0E1041CFD549200202683 /* usource.c */; };
 		B6D0E1091CFD54B800202683 /* svg.c in Sources */ = {isa = PBXBuildFile; fileRef = B6D0E1071CFD54B800202683 /* svg.c */; };
@@ -290,6 +289,7 @@
 		B6F66E351E473D68005B270A /* memory_pages.c in Sources */ = {isa = PBXBuildFile; fileRef = B6F66E331E473D68005B270A /* memory_pages.c */; };
 		B6FA759D0C1D7507007F5A10 /* audiofile.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6FA759C0C1D7507007F5A10 /* audiofile.framework */; };
 		B6FA75C60C1D76A5007F5A10 /* audiofile.framework in Copy Files */ = {isa = PBXBuildFile; fileRef = B6FA759C0C1D7507007F5A10 /* audiofile.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		CC2086963F8A491084EEBE3B /* DisplayShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 2BDC12F02C4E48F98494D156 /* DisplayShaders.metal */; };
 		D12E7FF3292596B200185E4D /* AppSandboxFileAccess.m in Sources */ = {isa = PBXBuildFile; fileRef = D12E7FED292596B100185E4D /* AppSandboxFileAccess.m */; };
 		D12E7FF4292596B200185E4D /* AppSandboxFileAccessOpenSavePanelDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = D12E7FEE292596B100185E4D /* AppSandboxFileAccessOpenSavePanelDelegate.m */; };
 		D12E7FF5292596B200185E4D /* AppSandboxFileAccessPersist.m in Sources */ = {isa = PBXBuildFile; fileRef = D12E7FF2292596B200185E4D /* AppSandboxFileAccessPersist.m */; };
@@ -447,6 +447,8 @@
 		2395678A67FCB7B7DAFF9A83 /* FuseQLPreview.appex */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "wrapper.app-extension"; name = FuseQLPreview.appex; path = ../3rdparty/FuseGenerator/build/Deployment/FuseQLPreview.appex; sourceTree = "<group>"; };
 		29B97324FDCFA39411CA2CEA /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = /System/Library/Frameworks/AppKit.framework; sourceTree = "<absolute>"; };
 		29B97325FDCFA39411CA2CEA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = /System/Library/Frameworks/Foundation.framework; sourceTree = "<absolute>"; };
+		2BDC12F02C4E48F98494D156 /* DisplayShaders.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = DisplayShaders.metal; sourceTree = "<group>"; };
+		8287F6EDEBAC4FFA8708CC4E /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = /System/Library/Frameworks/Metal.framework; sourceTree = "<absolute>"; };
 		9651D9A4AA56B244FA98440C /* FuseQLThumbnail.appex */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "wrapper.app-extension"; name = FuseQLThumbnail.appex; path = ../3rdparty/FuseGenerator/build/Deployment/FuseQLThumbnail.appex; sourceTree = "<group>"; };
 		B6013811164692F5005FD3AE /* Fuse.iconset */ = {isa = PBXFileReference; lastKnownFileType = folder.iconset; name = Fuse.iconset; path = ../Fuse.iconset; sourceTree = "<group>"; };
 		B6018479065A586900B0BE59 /* zxatasp.c */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.c; path = zxatasp.c; sourceTree = "<group>"; };
@@ -690,7 +692,6 @@
 		B6CE7F3E0B2830A300EB65B3 /* cocoaui.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = cocoaui.h; sourceTree = "<group>"; };
 		B6CE7FCB0B28FBD600EB65B3 /* DisplayOpenGLView.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DisplayOpenGLView.h; sourceTree = "<group>"; };
 		B6CE7FCC0B28FBD600EB65B3 /* DisplayOpenGLView.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = DisplayOpenGLView.m; sourceTree = "<group>"; };
-		2BDC12F02C4E48F98494D156 /* DisplayShaders.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = DisplayShaders.metal; sourceTree = "<group>"; };
 		B6D0E1011CFD547C00202683 /* didaktik.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = didaktik.c; sourceTree = "<group>"; };
 		B6D0E1021CFD547C00202683 /* didaktik.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = didaktik.h; sourceTree = "<group>"; };
 		B6D0E1041CFD549200202683 /* usource.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = usource.c; sourceTree = "<group>"; };
@@ -813,7 +814,6 @@
 		D1DF6DD726F8077F004A4AB7 /* debug.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = debug.png; sourceTree = "<group>"; };
 		D1ECC73C2924069800147252 /* ttx2000s.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ttx2000s.h; sourceTree = "<group>"; };
 		D1ECC73D2924069800147252 /* ttx2000s.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = ttx2000s.c; sourceTree = "<group>"; };
-		8287F6EDEBAC4FFA8708CC4E /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = /System/Library/Frameworks/Metal.framework; sourceTree = "<absolute>"; };
 		EAA54F20E902456BACB24998 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = /System/Library/Frameworks/MetalKit.framework; sourceTree = "<absolute>"; };
 		F536B56503A0C275011517A0 /* utils.c */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.c; name = utils.c; path = ../utils.c; sourceTree = SOURCE_ROOT; };
 		F541FB5E03B0B33401FF8235 /* scaler.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; name = scaler.h; path = ../ui/scaler/scaler.h; sourceTree = SOURCE_ROOT; };
@@ -1012,7 +1012,6 @@
 				B6A6F0ED0B3D5F9E000B88E9 /* CoreAudio.framework */,
 				29B97325FDCFA39411CA2CEA /* Foundation.framework */,
 				B653532A0B902CB20083F942 /* IOKit.framework */,
-				F520C8BC038D022E01A804BA /* OpenGL.framework */,
 				B6251C3D0C2EB24500BD5543 /* QuartzCore.framework */,
 			);
 			name = "Other Frameworks";
@@ -2356,7 +2355,7 @@
 				INFOPLIST_FILE = "Info-FuseX.plist";
 				INSTALL_PATH = /Applications;
 				LIBRARY_SEARCH_PATHS = .;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MARKETING_VERSION = "1.7.0-fusex-0.1";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "--deep";
@@ -2421,7 +2420,7 @@
 				INFOPLIST_FILE = "Info-FuseX.plist";
 				INSTALL_PATH = /Applications;
 				LIBRARY_SEARCH_PATHS = .;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MARKETING_VERSION = "1.7.0-fusex-0.1";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "--deep";
@@ -2485,7 +2484,7 @@
 				INFOPLIST_FILE = "Info-FuseX.plist";
 				INSTALL_PATH = /Applications;
 				LIBRARY_SEARCH_PATHS = .;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MARKETING_VERSION = "1.7.0-fusex-0.1";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "--deep";

@@ -66,6 +66,12 @@ fill_quad( DisplayVertex *out,
   out[5] = (DisplayVertex){ { x0, y1 }, { u0, v1 } };
 }
 
+static float
+map_clip_coordinate( float value, float min, float max )
+{
+  return min + ( value + 1.0f ) * 0.5f * ( max - min );
+}
+
 /* Convert a full frame of 16-bit BGR5A1 pixels (Spectrum framebuffer
    format) to 32-bit BGRA8 packed in little-endian word order, suitable
    for direct upload to MTLPixelFormatBGRA8Unorm via -replaceRegion:. */
@@ -399,6 +405,11 @@ static DisplayOpenGLView *instance = nil;
   if( ui_mouse_grabbed ) ui_mouse_grabbed = ui_mouse_release( 0 );
 }
 
+- (void)windowDidEnterFullScreen:(NSNotification *)notification
+{
+  [[self window] makeFirstResponder:self];
+}
+
 -(void) loadPicture: (NSString *) name
                       greenTex:(Texture*) greenTexture
                       redTex:(Texture*) redTexture
@@ -422,6 +433,10 @@ static DisplayOpenGLView *instance = nil;
 
 -(void) encodeIcon:(Texture*)iconTexture
            encoder:(id<MTLRenderCommandEncoder>)encoder
+         contentX0:(float)contentX0
+         contentY0:(float)contentY0
+         contentX1:(float)contentX1
+         contentY1:(float)contentY1
 {
   Cocoa_Texture* texture = [iconTexture getTexture];
 
@@ -435,6 +450,11 @@ static DisplayOpenGLView *instance = nil;
   float target_y2 = 1.0f - ( texture->image_yoffset + texture->image_height )
                     * 2.0f / (float)DISPLAY_SCREEN_HEIGHT;
 
+  target_x1 = map_clip_coordinate( target_x1, contentX0, contentX1 );
+  target_x2 = map_clip_coordinate( target_x2, contentX0, contentX1 );
+  target_y1 = map_clip_coordinate( target_y1, contentY1, contentY0 );
+  target_y2 = map_clip_coordinate( target_y2, contentY1, contentY0 );
+
   DisplayVertex verts[6];
   fill_quad( verts,
              target_x1, target_y1, target_x2, target_y2,
@@ -446,13 +466,19 @@ static DisplayOpenGLView *instance = nil;
 }
 
 -(void) encodeIconOverlay:(id<MTLRenderCommandEncoder>)encoder
+                contentX0:(float)contentX0
+                contentY0:(float)contentY0
+                contentX1:(float)contentX1
+                contentY1:(float)contentY1
 {
   switch( disk_state ) {
   case UI_STATUSBAR_STATE_ACTIVE:
-    [self encodeIcon:greenDisk encoder:encoder];
+    [self encodeIcon:greenDisk encoder:encoder contentX0:contentX0
+           contentY0:contentY0 contentX1:contentX1 contentY1:contentY1];
     break;
   case UI_STATUSBAR_STATE_INACTIVE:
-    [self encodeIcon:redDisk encoder:encoder];
+    [self encodeIcon:redDisk encoder:encoder contentX0:contentX0
+           contentY0:contentY0 contentX1:contentX1 contentY1:contentY1];
     break;
   case UI_STATUSBAR_STATE_NOT_AVAILABLE:
     break;
@@ -460,10 +486,12 @@ static DisplayOpenGLView *instance = nil;
 
   switch( mdr_state ) {
   case UI_STATUSBAR_STATE_ACTIVE:
-    [self encodeIcon:greenMdr encoder:encoder];
+    [self encodeIcon:greenMdr encoder:encoder contentX0:contentX0
+           contentY0:contentY0 contentX1:contentX1 contentY1:contentY1];
     break;
   case UI_STATUSBAR_STATE_INACTIVE:
-    [self encodeIcon:redMdr encoder:encoder];
+    [self encodeIcon:redMdr encoder:encoder contentX0:contentX0
+           contentY0:contentY0 contentX1:contentX1 contentY1:contentY1];
     break;
   case UI_STATUSBAR_STATE_NOT_AVAILABLE:
     break;
@@ -471,11 +499,13 @@ static DisplayOpenGLView *instance = nil;
 
   switch( tape_state ) {
   case UI_STATUSBAR_STATE_ACTIVE:
-    [self encodeIcon:greenCassette encoder:encoder];
+    [self encodeIcon:greenCassette encoder:encoder contentX0:contentX0
+           contentY0:contentY0 contentX1:contentX1 contentY1:contentY1];
     break;
   case UI_STATUSBAR_STATE_INACTIVE:
   case UI_STATUSBAR_STATE_NOT_AVAILABLE:
-    [self encodeIcon:redCassette encoder:encoder];
+    [self encodeIcon:redCassette encoder:encoder contentX0:contentX0
+           contentY0:contentY0 contentX1:contentX1 contentY1:contentY1];
     break;
   }
 }
@@ -518,6 +548,29 @@ static DisplayOpenGLView *instance = nil;
                 &horizontal_margin );
 
   Cocoa_Texture *cur = &screenTex[currentScreenTex];
+  float contentX0 = -1.0f;
+  float contentY0 = 1.0f;
+  float contentX1 = 1.0f;
+  float contentY1 = -1.0f;
+
+  if( !settings_current.full_screen_panorama ) {
+    static const float FULL_IMAGE_RATIO = 4.0f / 3.0f;
+    float viewRatio = rect.size.width / (float)rect.size.height;
+
+    horizontal_margin = 0.0f;
+    vertical_margin = 0;
+
+    if( viewRatio > FULL_IMAGE_RATIO ) {
+      float widthScale = FULL_IMAGE_RATIO / viewRatio;
+      contentX0 = -widthScale;
+      contentX1 = widthScale;
+    } else if( viewRatio < FULL_IMAGE_RATIO ) {
+      float heightScale = viewRatio / FULL_IMAGE_RATIO;
+      contentY0 = heightScale;
+      contentY1 = -heightScale;
+    }
+  }
+
   float fw = (float)cur->full_width;
   float fh = (float)cur->full_height;
   float u0 = (cur->image_xoffset - horizontal_margin) / fw;
@@ -526,7 +579,8 @@ static DisplayOpenGLView *instance = nil;
   float v1 = (cur->image_height + cur->image_yoffset - vertical_margin) / fh;
 
   DisplayVertex mainVerts[6];
-  fill_quad( mainVerts, -1.0f, 1.0f, 1.0f, -1.0f, u0, v0, u1, v1 );
+  fill_quad( mainVerts, contentX0, contentY0, contentX1, contentY1,
+             u0, v0, u1, v1 );
 
   id<MTLCommandBuffer> cmdBuf = [commandQueue commandBuffer];
   id<MTLRenderCommandEncoder> encoder =
@@ -537,7 +591,9 @@ static DisplayOpenGLView *instance = nil;
   [encoder setFragmentTexture:screenTexMTL[currentScreenTex] atIndex:0];
   [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
 
-  if( settings_current.statusbar ) [self encodeIconOverlay:encoder];
+  if( settings_current.statusbar )
+    [self encodeIconOverlay:encoder contentX0:contentX0 contentY0:contentY0
+                  contentX1:contentX1 contentY1:contentY1];
 
   [encoder endEncoding];
   [cmdBuf presentDrawable:drawable];
@@ -1077,6 +1133,7 @@ static DisplayOpenGLView *instance = nil;
 
 -(void) mouseDown:(NSEvent *)theEvent
 {
+  [[self window] makeFirstResponder:self];
   [proxy_emulator mouseDown:theEvent];
 }
 

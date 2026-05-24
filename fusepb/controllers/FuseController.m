@@ -2679,6 +2679,7 @@ save_as_exit:
       break;
 
     case LIBSPECTRUM_CLASS_DISK_TRDOS:
+    case LIBSPECTRUM_CLASS_DISK_GENERIC:
       settings_current.betadisk_file = strdup( fsrep );
       break;
 

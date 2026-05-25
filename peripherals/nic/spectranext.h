@@ -17,6 +17,7 @@ enum spectranext_cmd_t
     SPECTRANEXT_CMD_WIFI_DISCONNECT = 4,
     SPECTRANEXT_CMD_DNS_GETHOSTBYNAME = 5,
     SPECTRANEXT_CMD_ENGINECALL = 6,
+    SPECTRANEXT_CMD_GET_MESSAGE = 7,
 };
 
 #define WIFI_CONTROLLER_STATUS_OFFLINE (0u)
@@ -42,6 +43,8 @@ enum spectranext_cmd_t
 #define SPECTRANEXT_CONTROLLER_PAGE 0x48
 
 #define SPECTRANEXT_SCAN_AP_MAX 64
+
+#define SPECTRANEXT_MESSAGE_MAX 128
 
 #define SPECTRANEXT_CMD_REG_IDLE 0xFFu
 
@@ -128,6 +131,15 @@ typedef union spectranext_workspace
             char operation[256];
         } io;
     } enginecall;
+
+    struct
+    {
+        struct
+        {
+            char message[SPECTRANEXT_MESSAGE_MAX];
+            uint8_t pending;
+        } out;
+    } get_message;
 
     char page[4096 - 2];
 } spectranext_workspace_t;

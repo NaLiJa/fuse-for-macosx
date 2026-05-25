@@ -29,6 +29,9 @@ spectranext_state_t spectranext_state = {
 static char scan_ap_names[SPECTRANEXT_SCAN_AP_MAX][64];
 static uint8_t scan_ap_count;
 
+static char pending_message[SPECTRANEXT_MESSAGE_MAX];
+static bool message_pending;
+
 volatile struct spectranext_controller_t spectranext_controller = {
     .command = SPECTRANEXT_CMD_REG_IDLE,
     .status = SPECTRANEXT_STATUS_SUCCESS,
@@ -55,6 +58,52 @@ int spectranext_enginecall_dispatch(const char *input_file, const char *output_f
 static void spectranext_set_status(uint8_t status)
 {
     spectranext_controller.status = status;
+}
+
+bool spectranext_controller_post_message_bytes(const uint8_t *message, size_t length)
+{
+    if (message == NULL && length != 0u)
+        return false;
+
+    if (length >= SPECTRANEXT_MESSAGE_MAX)
+        length = SPECTRANEXT_MESSAGE_MAX - 1u;
+
+    if (length != 0u)
+        memcpy(pending_message, message, length);
+    pending_message[length] = '\0';
+    message_pending = true;
+
+    return true;
+}
+
+bool spectranext_controller_post_message(const char *message)
+{
+    if (message == NULL)
+        return false;
+
+    return spectranext_controller_post_message_bytes((const uint8_t *)message, strlen(message));
+}
+
+void spectranext_controller_clear_messages(void)
+{
+    pending_message[0] = '\0';
+    message_pending = false;
+}
+
+static void spectranext_controller_get_message(void)
+{
+    memset((void *)&spectranext_controller.workspace.get_message.out, 0,
+           sizeof(spectranext_controller.workspace.get_message.out));
+
+    if (message_pending)
+    {
+        memcpy((void *)spectranext_controller.workspace.get_message.out.message, pending_message,
+               sizeof(spectranext_controller.workspace.get_message.out.message));
+        spectranext_controller.workspace.get_message.out.pending = 1u;
+        spectranext_controller_clear_messages();
+    }
+
+    spectranext_set_status(SPECTRANEXT_STATUS_SUCCESS);
 }
 
 static void spectranext_controller_process_command(void)
@@ -188,6 +237,10 @@ static void spectranext_controller_process_command(void)
             spectranext_set_status((uint8_t)(int8_t)spectranext_enginecall_args.result);
             break;
 
+        case SPECTRANEXT_CMD_GET_MESSAGE:
+            spectranext_controller_get_message();
+            break;
+
         default:
             spectranext_set_status(SPECTRANEXT_STATUS_ERROR);
             break;
@@ -202,6 +255,7 @@ void spectranext_controller_init(void)
     spectranext_state.connection_status = WIFI_CONNECT_CONNECT_IP_OBTAINED;
     spectranext_state.ipv4_host = 0x7f000001u;
     scan_ap_count = 0;
+    spectranext_controller_post_message("FuseX: OK\n");
 }
 
 libspectrum_byte spectranext_controller_read(memory_page *page, libspectrum_word address)

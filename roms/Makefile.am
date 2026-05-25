@@ -47,4 +47,6 @@ pkgdata_DATA += $(ROMS)
 
 EXTRA_DIST += \
               $(ROMS) \
-              roms/README.copyright
+              roms/README.copyright \
+              roms/spectranext-launcher/boot.zx \
+              roms/spectranext-launcher/launcher.bin

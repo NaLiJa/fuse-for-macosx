@@ -30,6 +30,10 @@ install-win32: all
 	test "$(UI)" != "sdl" -a "$(UI)" != "sdl2" || $(MKDIR_P) $(DESTDIR)/ui/widget/ || exit 1
 	cp $(top_srcdir)/roms/*.rom $(DESTDIR)/roms
 	cp $(top_srcdir)/roms/README.copyright $(DESTDIR)/roms
+	if test -d "$(top_srcdir)/roms/spectranext-launcher"; then \
+	  $(MKDIR_P) "$(DESTDIR)/roms/spectranext-launcher"; \
+	  cp "$(top_srcdir)/roms/spectranext-launcher/"* "$(DESTDIR)/roms/spectranext-launcher/"; \
+	fi
 	cp $(top_srcdir)/lib/*.bmp $(DESTDIR)/lib
 	cp $(top_srcdir)/lib/*.png $(DESTDIR)/lib
 	cp $(top_srcdir)/lib/*.scr $(DESTDIR)/lib

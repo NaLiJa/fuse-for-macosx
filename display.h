@@ -57,6 +57,9 @@
 /* And the width in columns */
 #define DISPLAY_SCREEN_WIDTH_COLS ( DISPLAY_WIDTH_COLS + 2 * DISPLAY_BORDER_WIDTH_COLS )
 
+/* T-states the beam takes to cross the visible scanline (one column = 4 T-states) */
+#define DISPLAY_TSTATES_PER_LINE_VISIBLE ( DISPLAY_SCREEN_WIDTH_COLS * 4 )
+
 /* The aspect ratio corrected display width */
 #define DISPLAY_ASPECT_WIDTH  ( DISPLAY_SCREEN_WIDTH / 2 )
 

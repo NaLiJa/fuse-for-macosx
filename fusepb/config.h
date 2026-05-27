@@ -46,8 +46,8 @@
 /* Define to 1 if you have the `bz2' library (-lbz2). */
 #define HAVE_LIBBZ2 1
 
-/* Defined if we've got audiofile */
-#define HAVE_LIB_AUDIOFILE 1
+/* Defined if a WAV backend is available */
+#define HAVE_WAV_BACKEND 1
 
 /* Defined if we've got glib */
 /* #undef HAVE_LIB_GLIB */

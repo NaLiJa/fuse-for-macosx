@@ -56,6 +56,9 @@
 
 #define SPECTRANET_ROM_LENGTH 0x20000
 #define SPECTRANET_ROM_BASE 0
+#define SPECTRANET_LOCAL_ROM_HEADER_LENGTH 16
+#define SPECTRANET_LOCAL_ROM_LENGTH \
+  ( SPECTRANET_LOCAL_ROM_HEADER_LENGTH + SPECTRANET_ROM_LENGTH )
 
 #define SPECTRANET_BUFFER_LENGTH 0x8000
 #define SPECTRANET_BUFFER_BASE 0x40
@@ -71,6 +74,8 @@ static int spectranet_memory_allocated = 0;
 
 static nic_w5100_t *w5100;
 static flash_am29f010_t *flash_rom;
+static char spectranet_rom_path[ PATH_MAX ];
+static libspectrum_dword spectranet_source_rom_hash;
 
 #endif /* BUILD_SPECTRANET */
 
@@ -102,6 +107,144 @@ static int spectranet_source;
 /* Debugger events */
 static const char * const event_type_string = "spectranet";
 static int page_event, unpage_event;
+
+static libspectrum_dword
+spectranet_hash_rom( const libspectrum_byte *rom )
+{
+  size_t i;
+  libspectrum_dword hash = 2166136261u;
+
+  for( i = 0; i < SPECTRANET_ROM_LENGTH; i++ ) {
+    hash ^= rom[i];
+    hash *= 16777619u;
+  }
+
+  return hash;
+}
+
+static void
+spectranet_write_header_value( libspectrum_byte *buffer,
+                               libspectrum_dword value )
+{
+  buffer[0] = value >> 24;
+  buffer[1] = value >> 16;
+  buffer[2] = value >> 8;
+  buffer[3] = value;
+}
+
+static libspectrum_dword
+spectranet_read_header_value( const libspectrum_byte *buffer )
+{
+  return ( (libspectrum_dword)buffer[0] << 24 ) |
+         ( (libspectrum_dword)buffer[1] << 16 ) |
+         ( (libspectrum_dword)buffer[2] << 8 ) |
+         buffer[3];
+}
+
+static int
+spectranet_local_rom_header_matches( const utils_file *file )
+{
+  static const libspectrum_byte magic[8] =
+    { 'F', 'S', 'N', 'R', 'O', 'M', '0', '1' };
+
+  if( file->length != SPECTRANET_LOCAL_ROM_LENGTH )
+    return 0;
+
+  if( memcmp( file->buffer, magic, sizeof( magic ) ) )
+    return 0;
+
+  if( spectranet_read_header_value( file->buffer + 12 ) !=
+      SPECTRANET_ROM_LENGTH )
+    return 0;
+
+  return spectranet_read_header_value( file->buffer + 8 ) ==
+         spectranet_source_rom_hash;
+}
+
+static int
+spectranet_write_local_rom( const libspectrum_byte *rom )
+{
+  static const libspectrum_byte magic[8] =
+    { 'F', 'S', 'N', 'R', 'O', 'M', '0', '1' };
+  libspectrum_byte *buffer;
+  int error;
+
+  if( !spectranet_rom_path[0] )
+    return 1;
+
+  buffer = libspectrum_new( libspectrum_byte, SPECTRANET_LOCAL_ROM_LENGTH );
+  memcpy( buffer, magic, sizeof( magic ) );
+  spectranet_write_header_value( buffer + 8, spectranet_source_rom_hash );
+  spectranet_write_header_value( buffer + 12, SPECTRANET_ROM_LENGTH );
+  memcpy( buffer + SPECTRANET_LOCAL_ROM_HEADER_LENGTH, rom,
+          SPECTRANET_ROM_LENGTH );
+
+  error = utils_write_file( spectranet_rom_path, buffer,
+                            SPECTRANET_LOCAL_ROM_LENGTH );
+  libspectrum_free( buffer );
+
+  return error;
+}
+
+static void
+spectranet_save_flash_rom( void )
+{
+  libspectrum_byte *rom;
+
+  if( !flash_am29f010_modified( flash_rom ) || !spectranet_rom_path[0] )
+    return;
+
+  rom = spectranet_full_map[SPECTRANET_ROM_BASE * MEMORY_PAGES_IN_4K].page;
+
+  if( !spectranet_write_local_rom( rom ) )
+    flash_am29f010_set_modified( flash_rom, 0 );
+}
+
+static void
+spectranet_load_flash_rom( libspectrum_byte *rom )
+{
+  const char *config_path = compat_get_config_path();
+  utils_file spectranet_rom;
+  utils_file local_rom;
+  int source_rom_loaded;
+
+  spectranet_rom_path[0] = '\0';
+
+  if( config_path ) {
+    snprintf( spectranet_rom_path, PATH_MAX, "%s" FUSE_DIR_SEP_STR
+              "spectranet.rom", config_path );
+  }
+
+  source_rom_loaded =
+    utils_read_auxiliary_file( "spectranet.rom", &spectranet_rom,
+                               UTILS_AUXILIARY_ROM ) != -1;
+
+  if( source_rom_loaded )
+    spectranet_source_rom_hash = spectranet_hash_rom( spectranet_rom.buffer );
+
+  if( source_rom_loaded && spectranet_rom_path[0] &&
+      compat_file_exists( spectranet_rom_path ) &&
+      utils_read_file( spectranet_rom_path, &local_rom ) == 0 ) {
+    if( spectranet_local_rom_header_matches( &local_rom ) ) {
+      memcpy( rom, local_rom.buffer + SPECTRANET_LOCAL_ROM_HEADER_LENGTH,
+              SPECTRANET_ROM_LENGTH );
+      utils_close_file( &local_rom );
+      utils_close_file( &spectranet_rom );
+      return;
+    }
+    utils_close_file( &local_rom );
+  }
+
+  if( source_rom_loaded ) {
+    memcpy( rom, spectranet_rom.buffer, SPECTRANET_ROM_LENGTH );
+    utils_close_file( &spectranet_rom );
+
+    if( spectranet_rom_path[0] && spectranet_write_local_rom( rom ) )
+      spectranet_rom_path[0] = '\0';
+  } else {
+    spectranet_rom_path[0] = '\0';
+  }
+}
 
 void
 spectranet_page( int via_io )
@@ -286,12 +429,8 @@ spectranet_activate( void )
 
     /* Pages 0xc0 to 0xff are the RAM */
     ram = memory_pool_allocate_persistent( SPECTRANET_RAM_LENGTH, 1 );
-    
-    utils_file spectranet_rom;
-    if( utils_read_auxiliary_file( "spectranet.rom", &spectranet_rom, UTILS_AUXILIARY_ROM ) != -1 ) {
-      memcpy(rom, spectranet_rom.buffer, SPECTRANET_ROM_LENGTH);
-      utils_close_file(&spectranet_rom);
-    }
+
+    spectranet_load_flash_rom( rom );
 
     for( i = 0; i < SPECTRANET_RAM_LENGTH / SPECTRANET_PAGE_LENGTH; i++ ) {
       int base = (SPECTRANET_RAM_BASE + i) * MEMORY_PAGES_IN_4K;
@@ -599,6 +738,7 @@ spectranet_flash_rom_write( libspectrum_word address, libspectrum_byte b )
     /* And at what offset into that page */
     libspectrum_word flash_address = (pageb_page % 4) * SPECTRANET_PAGE_LENGTH + (address & 0xfff);
     flash_am29f010_write( flash_rom, flash_page, flash_address, b );
+    spectranet_save_flash_rom();
   }
 }
 

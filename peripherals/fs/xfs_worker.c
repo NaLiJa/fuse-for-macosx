@@ -16,6 +16,7 @@
 #endif
 
 #include "libspectrum.h"
+#include "../spectranet.h"
 #include "memory_pages.h"
 #include "ui/ui.h"
 #include "compat.h"
@@ -70,15 +71,42 @@ static void xfs_seed_spectranext_launcher_files(void)
 {
     char boot_path[PATH_MAX];
 
+    if (spectranext_reboot_check_launcher_suppressed())
+        return;
+
     if (snprintf(boot_path, sizeof(boot_path), "%s" FUSE_DIR_SEP_STR "boot.zx", xfs_base_path) >=
         (int)sizeof(boot_path))
         return;
+  
+    uint8_t auto_boot = 0;
 
-    if (compat_file_exists(boot_path))
+    spectranet_config_get_byte(
+        CONFIG_SECTION_AUTO_MOUNT,
+        CONFIG_ITEM_AUTO_BOOT,
+        &auto_boot
+    );
+  
+    if (auto_boot == 0)
         return;
-
-    xfs_copy_spectranext_launcher_file("boot.zx");
-    xfs_copy_spectranext_launcher_file("launcher.bin");
+  
+    /**
+     RAMFS boot behavior
+     When xfs://ram/ is selected as a mount point 0 and auto_boot is enabled,
+     Spectranet will attempt to load "boot.zx" file. This code presents that file with launcher code.
+     However, when user has uploaded custom boot.zx we must take care not to overwrite that file.
+     */
+  
+    char mount[128];
+    if (spectranet_config_get_string(CONFIG_SECTION_AUTO_MOUNT,
+                                     CONFIG_ITEM_MOUNT_RESOURCE,
+                                     mount, sizeof(mount)) == 0)
+    {
+        if (strcmp("xfs://ram/", mount) == 0)
+        {
+            xfs_copy_spectranext_launcher_file("boot.zx");
+            xfs_copy_spectranext_launcher_file("launcher.bin");
+        }
+    }
 }
 
 void xfs_init()

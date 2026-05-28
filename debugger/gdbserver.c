@@ -1190,7 +1190,24 @@ void gdbserver_on_machine_reset(void)
       {
         spectranet_config_set_string(CONFIG_SECTION_AUTO_MOUNT, CONFIG_ITEM_MOUNT_RESOURCE, "xfs://ram/");
         spectranet_config_set_byte(CONFIG_SECTION_AUTO_MOUNT, CONFIG_ITEM_AUTO_BOOT, 1);
-        spectranext_autoboot = autoboot_force_reset_once;
+        
+        uint8_t was_set = 0;
+
+        spectranet_config_get_byte(
+            CONFIG_SECTION_AUTO_MOUNT,
+            CONFIG_ITEM_AUTO_BOOT,
+            &was_set
+        );
+        
+        if (was_set)
+        {
+          spectranext_autoboot = autoboot_nothing;
+        }
+        else
+        {
+          spectranext_autoboot = autoboot_force_reset_once;
+        }
+        
         break;
       }
       case autoboot_force_reset_once:

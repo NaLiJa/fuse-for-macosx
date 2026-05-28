@@ -122,6 +122,7 @@ static int vfile_ext_config_set_byte(uint8_t section, uint8_t item, uint8_t valu
 void vfile_ext_autoboot(void)
 {
     // Schedule autoboot on main thread (required for thread safety)
+    spectranext_reboot_suppress_launcher_once();
     gdbserver_schedule_autoboot();
 }
 

@@ -26,10 +26,10 @@
 #include <config.h>
 
 #import "DisplayOpenGLView.h"
+#import "Emulator.h"
 #import "TapeBrowserController.h"
 
 #include "tape.h"
-#include "fuse.h"
 
 static void
 add_block_details( libspectrum_tape_block *block, void *user_data );
@@ -93,13 +93,9 @@ static TapeBrowserController *singleton = nil;
 
 - (void)showWindow:(id)sender
 {
-  [[DisplayOpenGLView instance] pause];
-  
   [super showWindow:sender];
 
   [[DisplayOpenGLView instance] tapeWindowInitialise];
-
-  [[DisplayOpenGLView instance] unpause];
 }
 
 - (void)clearContents
@@ -126,6 +122,36 @@ static TapeBrowserController *singleton = nil;
 - (void)setInitialising:(NSNumber*)value
 {
   initialising = [value boolValue];
+}
+
+- (void)setDocumentEditedFlag:(NSNumber*)flag
+{
+  [[self window] setDocumentEdited:[flag boolValue]];
+}
+
+/* Runs on the emulator thread to serialise the tape_foreach walk with
+   save-trap / RZX block appends. */
+- (void)populateFromTape
+{
+  int current_block;
+
+  [self performSelectorOnMainThread:@selector(clearContents)
+                          withObject:nil
+                       waitUntilDone:NO];
+  [self performSelectorOnMainThread:@selector(setInitialising:)
+                          withObject:@(YES)
+                       waitUntilDone:NO];
+  tape_foreach( add_block_details, self );
+  [self performSelectorOnMainThread:@selector(setInitialising:)
+                          withObject:@(NO)
+                       waitUntilDone:NO];
+
+  current_block = tape_get_current_block();
+  if( current_block >= 0 ) {
+    [self performSelectorOnMainThread:@selector(setTapeIndex:)
+                            withObject:@((unsigned int)current_block)
+                         waitUntilDone:NO];
+  }
 }
 
 @synthesize tapeController;
@@ -324,38 +350,27 @@ int
 ui_tape_browser_update( ui_tape_browser_update_type change,
                         libspectrum_tape_block *block )
 {
-  int error;
   TapeBrowserController* tapeBrowserController;
 
   if( !dialog_created ) return 0;
 
-  fuse_emulation_pause();
-
   tapeBrowserController = [TapeBrowserController singleton];
 
   if( change == UI_TAPE_BROWSER_NEW_TAPE ) {
-    [tapeBrowserController
-          performSelectorOnMainThread:@selector(clearContents)
-          withObject:nil
-          waitUntilDone:NO
-    ];
-
-    [tapeBrowserController
-          performSelectorOnMainThread:@selector(setInitialising:)
-          withObject:@(YES)
-          waitUntilDone:NO
-    ];
-    error = tape_foreach( add_block_details, tapeBrowserController );
-    [tapeBrowserController
-          performSelectorOnMainThread:@selector(setInitialising:)
-          withObject:@(NO)
-          waitUntilDone:NO
-    ];
-    if( error ) return error;
+    NSThread *emulThread = [[Emulator instance] emulatorThread];
+    if( emulThread == nil || [NSThread currentThread] == emulThread ) {
+      [tapeBrowserController populateFromTape];
+    } else {
+      [tapeBrowserController
+            performSelector:@selector(populateFromTape)
+            onThread:emulThread
+            withObject:nil
+            waitUntilDone:NO
+      ];
+    }
   }
 
-  if( change == UI_TAPE_BROWSER_SELECT_BLOCK ||
-    change == UI_TAPE_BROWSER_NEW_TAPE ) {
+  if( change == UI_TAPE_BROWSER_SELECT_BLOCK ) {
     int current_block = tape_get_current_block();
     if(current_block >= 0) {
       [tapeBrowserController
@@ -370,13 +385,11 @@ ui_tape_browser_update( ui_tape_browser_update_type change,
     add_block_details( block, tapeBrowserController );
   }
 
-  if( tape_modified ) {
-    [[tapeBrowserController window] setDocumentEdited:YES];
-  } else {
-    [[tapeBrowserController window] setDocumentEdited:NO];
-  }
-
-  fuse_emulation_unpause();
+  [tapeBrowserController
+        performSelectorOnMainThread:@selector(setDocumentEditedFlag:)
+        withObject:@(tape_modified ? YES : NO)
+        waitUntilDone:NO
+  ];
 
   return 0;
 }

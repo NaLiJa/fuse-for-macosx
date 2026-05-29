@@ -385,6 +385,11 @@ static Emulator *instance = nil;
   debugger_mode = DEBUGGER_MODE_HALTED;
 }
 
+-(NSThread *) emulatorThread
+{
+  return emulatorThread;
+}
+
 -(void) pause
 {
   fuse_emulation_pause();

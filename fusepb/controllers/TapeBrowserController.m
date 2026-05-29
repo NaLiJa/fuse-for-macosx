@@ -116,7 +116,9 @@ static TapeBrowserController *singleton = nil;
 
 - (void)setTapeIndex:(NSNumber*)index
 {
-  [tapeController setSelectionIndex:[index unsignedIntValue]];
+  NSUInteger idx = [index unsignedIntValue];
+  [tapeController setSelectionIndex:idx];
+  [tapeBrowser scrollRowToVisible:(NSInteger)idx];
 }
 
 - (void)setInitialising:(NSNumber*)value

@@ -2373,7 +2373,7 @@
 				INSTALL_PATH = /Applications;
 				LIBRARY_SEARCH_PATHS = .;
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MARKETING_VERSION = "1.8.0-fusex-0.1";
+				MARKETING_VERSION = "1.8.0-fusex-0.3";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				OTHER_LDFLAGS = (
@@ -2438,7 +2438,7 @@
 				INSTALL_PATH = /Applications;
 				LIBRARY_SEARCH_PATHS = .;
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MARKETING_VERSION = "1.8.0-fusex-0.1";
+				MARKETING_VERSION = "1.8.0-fusex-0.3";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				OTHER_LDFLAGS = (
@@ -2502,7 +2502,7 @@
 				INSTALL_PATH = /Applications;
 				LIBRARY_SEARCH_PATHS = .;
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MARKETING_VERSION = "1.8.0-fusex-0.1";
+				MARKETING_VERSION = "1.8.0-fusex-0.3";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				OTHER_LDFLAGS = (

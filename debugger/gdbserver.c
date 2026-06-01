@@ -736,8 +736,15 @@ static void* network_thread(void* arg)
         while ((ret = process_network(gdbserver_client_socket)) == 0) ;
         printf("Socket closed: %d\n", gdbserver_client_socket);
         
-        debugger_breakpoint_remove_all();
-        printf("Deleted all breakpoints.\n");
+        /* Remove the client's breakpoints without racing the emulator's
+           debugger_check() walk: free directly only while the emulator is
+           parked in the trap loop; otherwise defer the free to the emulator
+           thread, which performs it from debugger_check(). */
+        if (gdbserver_trapped) {
+            debugger_breakpoint_remove_all();
+        } else {
+            debugger_breakpoints_remove_pending = 1;
+        }
         
         compat_socket_close(gdbserver_client_socket);
         gdbserver_client_socket = -1;

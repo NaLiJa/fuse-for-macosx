@@ -43,6 +43,8 @@
 /* The current breakpoints */
 GSList *debugger_breakpoints;
 
+volatile int debugger_breakpoints_remove_pending = 0;
+
 /* The next breakpoint ID to use */
 static size_t next_breakpoint_id;
 
@@ -236,6 +238,11 @@ debugger_check( debugger_breakpoint_type type, libspectrum_dword value )
   GSList *ptr_next;
 
   int signal_breakpoints_updated = 0;
+
+  if( debugger_breakpoints_remove_pending ) {
+    debugger_breakpoints_remove_pending = 0;
+    debugger_breakpoint_remove_all();
+  }
 
   switch( debugger_mode ) {
 

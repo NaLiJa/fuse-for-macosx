@@ -32,6 +32,11 @@ extern int debugger_memory_pool;
 /* The event type used to trigger time breakpoints */
 extern int debugger_breakpoint_event;
 
+/* Set by the gdbserver network thread when a client disconnects while the
+   emulator is running; honoured by debugger_check() on the emulator thread so
+   the breakpoint list is never freed underneath an in-progress walk. */
+extern volatile int debugger_breakpoints_remove_pending;
+
 void debugger_breakpoint_time_fn( libspectrum_dword tstates, int type, void *user_data );
 
 int debugger_breakpoint_remove( size_t id );

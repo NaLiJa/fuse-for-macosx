@@ -194,6 +194,15 @@ crc_add( wd_fdc *f, fdd_t *d )
   f->crc = crc_fdc( f->crc, d->data & 0xff );
 }
 
+/* Preset the CRC to its value after the three 0xa1 marks that precede an MFM
+   address mark (crc_fdc of three 0xa1 bytes from 0xffff). Accumulation resumes
+   from the mark byte, so a short or absent a1 run does not affect validation. */
+static void
+crc_preset_am( wd_fdc *f )
+{
+  f->crc = 0xcdb4;
+}
+
 static int
 disk_ready( wd_fdc *f )
 {
@@ -224,30 +233,24 @@ read_id( wd_fdc *f )
     return 1;
 
   while( i == f->rev ) { /* **FIXME d->motoron? */
-    crc_preset( f );
     if( f->dden ) {	/* double density (MFM) */
+      int n = 4;			/* tolerate a short run of a1 marks */
       fdd_read_data( d );
       if( d->index ) f->rev--;
-      crc_add(f, d);
-      if( d->data == 0xffa1 ) {
-        fdd_read_data( d ); crc_add(f, d);
-        if( d->index ) f->rev--;
-        if( d->data != 0xffa1 )
-          continue;
-        fdd_read_data( d ); crc_add(f, d);
-        if( d->index ) f->rev--;
-        if( d->data != 0xffa1 )
-          continue;
-      } else {		/* no 0xa1 with missing clock... */
+      if( d->data != 0xffa1 )		/* scan for an a1 mark */
         continue;
-      }
-    }
-    fdd_read_data( d ); crc_add(f, d);
-    if( d->index ) f->rev--;
-    if( f->dden ) {	/* double density (MFM) */
-      if( d->data != 0x00fe )
+      do {				/* skip the rest of the a1 mark run */
+        fdd_read_data( d );
+        if( d->index ) f->rev--;
+      } while( d->data == 0xffa1 && --n );
+      crc_preset_am( f );		/* crc as if three a1 marks preceded */
+      crc_add( f, d );
+      if( d->data != 0x00fe )		/* the id address mark must follow */
         continue;
     } else {		/* single density (FM) */
+      crc_preset( f );
+      fdd_read_data( d ); crc_add(f, d);
+      if( d->index ) f->rev--;
       if( d->data != 0xfffe )
         continue;
     }
@@ -294,34 +297,21 @@ read_datamark( wd_fdc *f )
   f->id_mark = WD_FDC_AM_NONE;
 
   if( f->dden ) {	/* double density (MFM) */
-    for( i = 40; i > 0; i-- ) {
+    int n = 4;			/* tolerate a short run of a1 marks */
+    /* WD1793 searches 43 byte-times for the MFM data mark */
+    for( i = 43; i > 0; i-- ) {		/* scan the gap for an a1 mark */
       fdd_read_data( d );
-      if( d->data == 0x4e )		/* read next */
-	continue;
-
-      if( d->data == 0x00 )		/* go to PLL sync */
+      if( d->data == 0xffa1 )
 	break;
-
-      return 1;				/* something wrong... */
     }
-    for( ; i > 0; i-- ) {
-      crc_preset( f );
-      fdd_read_data( d ); crc_add(f, d);
-      if( d->data == 0x00 )
-	continue;
-
-      if( d->data == 0xffa1 )	/* got to a1 mark */
-	break;
-
+    if( i == 0 )			/* no a1 mark found in the gap */
       return 1;
-    }
-    for( i = d->data == 0xffa1 ? 2 : 3; i > 0; i-- ) {
-      fdd_read_data( d ); crc_add(f, d);
-      if( d->data != 0xffa1 )
-	return 1;
-    }
-    fdd_read_data( d ); crc_add(f, d);
-    if( d->data < 0x00f8 || d->data > 0x00fb )	/* !fb deleted mark */
+    do {				/* skip the rest of the a1 mark run */
+      fdd_read_data( d );
+    } while( d->data == 0xffa1 && --n );
+    crc_preset_am( f );			/* crc as if three a1 marks preceded */
+    crc_add( f, d );
+    if( d->data < 0x00f8 || d->data > 0x00fb )	/* the data address mark must follow */
       return 1;
     if( d->data != 0x00fb )
       f->ddam = 1;

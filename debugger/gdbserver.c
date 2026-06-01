@@ -437,11 +437,13 @@ uint8_t process_packet()
         case 'm':
         {
             struct action_mem_args_t mem;
-            assert(sscanf(payload, "%zx,%zx", &mem.maddr, &mem.mlen) == 2);
-            if (mem.mlen * SZ * 2 > 0x20000)
-            {
-              puts("Buffer overflow!");
-              exit(-1);
+            if (sscanf(payload, "%zx,%zx", &mem.maddr, &mem.mlen) != 2) {
+                packet_send_message((const uint8_t*)"E01", 3);
+                break;
+            }
+            if (mem.mlen * SZ * 2 > 0x20000) {
+                packet_send_message((const uint8_t*)"E01", 3);
+                break;
             }
           
             if (gdbserver_execute_on_main_thread(action_get_mem, &mem, tmpbuf))
@@ -473,7 +475,10 @@ uint8_t process_packet()
         {
             struct action_register_args_t r;
             r.reg = strtol(payload, NULL, 16);
-            assert('=' == *payload++);
+            if ('=' != *payload++) {
+                packet_send_message((const uint8_t*)"E01", 3);
+                break;
+            }
           
             hex2mem(payload, (void *)&r.value, SZ * 2);
           
@@ -563,7 +568,10 @@ uint8_t process_packet()
         case 'Z':
         {
             size_t type, addr, length;
-            assert(sscanf(payload, "%zx,%zx,%zx", &type, &addr, &length) == 3);
+            if (sscanf(payload, "%zx,%zx,%zx", &type, &addr, &length) != 3) {
+                packet_send_message((const uint8_t*)"E01", 3);
+                break;
+            }
           
             struct action_breakpoint_args_t b;
             b.maddr = addr;
@@ -576,7 +584,10 @@ uint8_t process_packet()
         case 'z':
         {
             size_t type, addr, length;
-            assert(sscanf(payload, "%zx,%zx,%zx", &type, &addr, &length) == 3);
+            if (sscanf(payload, "%zx,%zx,%zx", &type, &addr, &length) != 3) {
+                packet_send_message((const uint8_t*)"E01", 3);
+                break;
+            }
           
             struct action_breakpoint_args_t b;
             b.maddr = addr;

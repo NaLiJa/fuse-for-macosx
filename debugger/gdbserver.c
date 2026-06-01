@@ -238,6 +238,10 @@ static void process_xfer(const char *name, char *args)
 {
   const char *mode = args;
   args = strchr(args, ':');
+  if( !args ) {
+    packet_send_message((const uint8_t*)"", 0);
+    return;
+  }
   *args++ = '\0';
   
   if (!strcmp(name, "features") && !strcmp(mode, "read")) {

@@ -81,6 +81,23 @@
 		<dict>
 			<key>CFBundleTypeExtensions</key>
 			<array>
+				<string>udi</string>
+				<string>UDI</string>
+			</array>
+			<key>CFBundleTypeIconFile</key>
+			<string>udi</string>
+			<key>CFBundleTypeName</key>
+			<string>ZX Spectrum Disk Image</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>net.sourceforge.projects.fuse-emulator.udi</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
 				<string>rzx</string>
 				<string>RZX</string>
 			</array>
@@ -758,6 +775,25 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>fdi</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>net.sourceforge.projects.fuse-emulator.MassStorage</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>ZX Spectrum UDI Disk Image</string>
+			<key>UTTypeIconFile</key>
+			<string>udi</string>
+			<key>UTTypeIdentifier</key>
+			<string>net.sourceforge.projects.fuse-emulator.udi</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>udi</string>
 				</array>
 			</dict>
 		</dict>

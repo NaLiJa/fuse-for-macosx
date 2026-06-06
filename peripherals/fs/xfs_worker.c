@@ -44,71 +44,6 @@ bool xfs_debug_is_enabled(void)
 // XFS base directory path
 char xfs_base_path[512];
 
-static int xfs_copy_spectranext_launcher_file(const char *filename)
-{
-    char source_name[PATH_MAX];
-    char destination_path[PATH_MAX];
-    utils_file source_file;
-
-    if (snprintf(source_name, sizeof(source_name), "spectranext-launcher/%s", filename) >=
-        (int)sizeof(source_name))
-        return 1;
-
-    if (snprintf(destination_path, sizeof(destination_path), "%s" FUSE_DIR_SEP_STR "%s",
-                 xfs_base_path, filename) >= (int)sizeof(destination_path))
-        return 1;
-
-    if (utils_read_auxiliary_file(source_name, &source_file, UTILS_AUXILIARY_ROM) != 0 &&
-        utils_read_auxiliary_file(filename, &source_file, UTILS_AUXILIARY_ROM) != 0)
-        return 1;
-
-    const int error = utils_write_file(destination_path, source_file.buffer, source_file.length);
-    utils_close_file(&source_file);
-    return error;
-}
-
-static void xfs_seed_spectranext_launcher_files(void)
-{
-    char boot_path[PATH_MAX];
-
-    if (spectranext_reboot_check_launcher_suppressed())
-        return;
-
-    if (snprintf(boot_path, sizeof(boot_path), "%s" FUSE_DIR_SEP_STR "boot.zx", xfs_base_path) >=
-        (int)sizeof(boot_path))
-        return;
-  
-    uint8_t auto_boot = 0;
-
-    spectranet_config_get_byte(
-        CONFIG_SECTION_AUTO_MOUNT,
-        CONFIG_ITEM_AUTO_BOOT,
-        &auto_boot
-    );
-  
-    if (auto_boot == 0)
-        return;
-  
-    /**
-     RAMFS boot behavior
-     When xfs://ram/ is selected as a mount point 0 and auto_boot is enabled,
-     Spectranet will attempt to load "boot.zx" file. This code presents that file with launcher code.
-     However, when user has uploaded custom boot.zx we must take care not to overwrite that file.
-     */
-  
-    char mount[128];
-    if (spectranet_config_get_string(CONFIG_SECTION_AUTO_MOUNT,
-                                     CONFIG_ITEM_MOUNT_RESOURCE,
-                                     mount, sizeof(mount)) == 0)
-    {
-        if (strcmp("xfs://ram/", mount) == 0)
-        {
-            xfs_copy_spectranext_launcher_file("boot.zx");
-            xfs_copy_spectranext_launcher_file("launcher.bin");
-        }
-    }
-}
-
 void xfs_init()
 {
     snprintf(xfs_base_path, sizeof(xfs_base_path), "%s/xfs", compat_get_config_path());
@@ -123,7 +58,6 @@ void xfs_init()
         ui_error( UI_ERROR_WARNING, "xfs: failed to create xfs directory: %s\n", strerror(errno) );
     }
     
-    xfs_seed_spectranext_launcher_files();
     XFS_DEBUG("xfs: initialized with base path: %s\n", xfs_base_path ? xfs_base_path : "(null)");
 }
 

@@ -96,9 +96,6 @@ void spectranet_spectranext_config_write( memory_page *page, libspectrum_word ad
 libspectrum_byte spectranet_flash_rom_read( memory_page *page, libspectrum_word address );
 void spectranet_flash_rom_write( libspectrum_word address, libspectrum_byte b );
 
-void spectranext_reboot_suppress_launcher_once( void );
-int spectranext_reboot_check_launcher_suppressed( void );
-
 extern int spectranet_available;
 extern int spectranet_paged;
 extern int spectranet_w5100_paged_a, spectranet_w5100_paged_b;

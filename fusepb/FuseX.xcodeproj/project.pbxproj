@@ -307,8 +307,6 @@
 		FE2DAC7B2F32A500009AC45A /* httpc.c in Sources */ = {isa = PBXBuildFile; fileRef = FE2DAC7A2F32A500009AC45A /* httpc.c */; };
 		FE2DAC802F32AB6C009AC45A /* vfile_ext.c in Sources */ = {isa = PBXBuildFile; fileRef = FE2DAC7F2F32AB6C009AC45A /* vfile_ext.c */; };
 		FE2DAC812F32AB6C009AC45A /* vfile.c in Sources */ = {isa = PBXBuildFile; fileRef = FE2DAC7D2F32AB6C009AC45A /* vfile.c */; };
-		FE3079E82FC4F69E0044EB9A /* boot.zx in Resources */ = {isa = PBXBuildFile; fileRef = FE3079E52FC4F69E0044EB9A /* boot.zx */; };
-		FE3079E92FC4F69E0044EB9A /* launcher.bin in Resources */ = {isa = PBXBuildFile; fileRef = FE3079E62FC4F69E0044EB9A /* launcher.bin */; };
 		FE3FF185294F1220009F571F /* spectranet.rom in Resources */ = {isa = PBXBuildFile; fileRef = FE3FF184294F1220009F571F /* spectranet.rom */; };
 		FE9443BC2F881C540059A578 /* engine_argv.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9443B72F881C540059A578 /* engine_argv.c */; };
 		FE9443BD2F881C540059A578 /* lexer.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9443B02F881C540059A578 /* lexer.c */; };
@@ -898,8 +896,6 @@
 		FE2DAC7D2F32AB6C009AC45A /* vfile.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vfile.c; sourceTree = "<group>"; };
 		FE2DAC7E2F32AB6C009AC45A /* vfile_ext.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vfile_ext.h; sourceTree = "<group>"; };
 		FE2DAC7F2F32AB6C009AC45A /* vfile_ext.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vfile_ext.c; sourceTree = "<group>"; };
-		FE3079E52FC4F69E0044EB9A /* boot.zx */ = {isa = PBXFileReference; lastKnownFileType = file; path = boot.zx; sourceTree = "<group>"; };
-		FE3079E62FC4F69E0044EB9A /* launcher.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = launcher.bin; sourceTree = "<group>"; };
 		FE3FF184294F1220009F571F /* spectranet.rom */ = {isa = PBXFileReference; lastKnownFileType = file; name = spectranet.rom; path = ../roms/spectranet.rom; sourceTree = "<group>"; };
 		FE9443AD2F881C540059A578 /* ast.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ast.h; sourceTree = "<group>"; };
 		FE9443AE2F881C540059A578 /* ast.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ast.c; sourceTree = "<group>"; };
@@ -1660,7 +1656,6 @@
 		F559854A038920FD01A804BA /* roms */ = {
 			isa = PBXGroup;
 			children = (
-				FE3079E72FC4F69E0044EB9A /* spectranext-launcher */,
 				FE3FF184294F1220009F571F /* spectranet.rom */,
 				F559854D0389212301A804BA /* 128-0.rom */,
 				F559854E0389212301A804BA /* 128-1.rom */,
@@ -1806,16 +1801,6 @@
 			);
 			path = http;
 			sourceTree = "<group>";
-		};
-		FE3079E72FC4F69E0044EB9A /* spectranext-launcher */ = {
-			isa = PBXGroup;
-			children = (
-				FE3079E52FC4F69E0044EB9A /* boot.zx */,
-				FE3079E62FC4F69E0044EB9A /* launcher.bin */,
-			);
-			name = "spectranext-launcher";
-			path = "../roms/spectranext-launcher";
-			sourceTree = SOURCE_ROOT;
 		};
 		FE9443B52F881C540059A578 /* jsonpath */ = {
 			isa = PBXGroup;
@@ -1997,8 +1982,6 @@
 				B61F462F09121DF100C8096C /* tap.icns in Resources */,
 				B61F463009121DF100C8096C /* trd.icns in Resources */,
 				B61F463109121DF100C8096C /* tzx.icns in Resources */,
-				FE3079E82FC4F69E0044EB9A /* boot.zx in Resources */,
-				FE3079E92FC4F69E0044EB9A /* launcher.bin in Resources */,
 				B61F463209121DF100C8096C /* z80.icns in Resources */,
 				B6F0481B0952B5FD006D8005 /* zxs.icns in Resources */,
 				FE3FF185294F1220009F571F /* spectranet.rom in Resources */,

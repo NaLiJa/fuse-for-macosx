@@ -103,7 +103,6 @@ static int nmi_flipflop = 0;
 static libspectrum_byte spectranet_control_register = 0;
 
 static int spectranet_source = 0;
-static int spectranext_suppress_launcher_once = 0;
 
 /* Debugger events */
 static const char * const event_type_string = "spectranet";
@@ -245,23 +244,6 @@ spectranet_load_flash_rom( libspectrum_byte *rom )
   } else {
     spectranet_rom_path[0] = '\0';
   }
-}
-
-void
-spectranext_reboot_suppress_launcher_once( void )
-{
-  spectranext_suppress_launcher_once = 1;
-}
-
-int
-spectranext_reboot_check_launcher_suppressed( void )
-{
-  if( spectranext_suppress_launcher_once ) {
-    spectranext_suppress_launcher_once = 0;
-    return 1;
-  }
-
-  return 0;
 }
 
 void
@@ -1376,17 +1358,6 @@ void
 spectranet_flash_rom_write( libspectrum_word address GCC_UNUSED,
   libspectrum_byte b GCC_UNUSED )
 {
-}
-
-void
-spectranext_reboot_suppress_launcher_once( void )
-{
-}
-
-int
-spectranext_reboot_check_launcher_suppressed( void )
-{
-  return 0;
 }
 
 libspectrum_byte *

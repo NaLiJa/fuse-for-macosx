@@ -85,6 +85,7 @@
 -(int) tapeClose;
 -(void) tapeWindowInitialise;
 -(void) cocoaBreak;
+-(NSThread *) emulatorThread;
 -(void) pause;
 -(void) unpause;
 -(void) reset;

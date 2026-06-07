@@ -198,6 +198,10 @@ static Emulator *instance = nil;
   }
   [Emulator endROMScopedAccess:romURLs];
 
+  if( settings_current.show_help || settings_current.show_version ) {
+    exit( 0 );
+  }
+
   [proxy_view setServer:self];
 
   while( !fuse_exiting ) {

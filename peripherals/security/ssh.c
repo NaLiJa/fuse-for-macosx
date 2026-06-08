@@ -1348,13 +1348,17 @@ int ssh_socket_close(ssh_socket_t *ssh)
 
     if (ssh->channel) {
         int rc = LIBSSH2_ERROR_EAGAIN;
-        for (int i = 0; i < SSH_CLEANUP_RETRIES && rc == LIBSSH2_ERROR_EAGAIN; i++) {
-            rc = ssh_cleanup_wait(ssh, libssh2_channel_close(ssh->channel));
+        {
+          for (int i = 0; i < SSH_CLEANUP_RETRIES && rc == LIBSSH2_ERROR_EAGAIN; i++) {
+              rc = ssh_cleanup_wait(ssh, libssh2_channel_close(ssh->channel));
+          }
         }
 
         rc = LIBSSH2_ERROR_EAGAIN;
-        for (int i = 0; i < SSH_CLEANUP_RETRIES && rc == LIBSSH2_ERROR_EAGAIN; i++) {
-            rc = ssh_cleanup_wait(ssh, libssh2_channel_free(ssh->channel));
+        {
+          for (int i = 0; i < SSH_CLEANUP_RETRIES && rc == LIBSSH2_ERROR_EAGAIN; i++) {
+              rc = ssh_cleanup_wait(ssh, libssh2_channel_free(ssh->channel));
+          }
         }
 
         if (rc != LIBSSH2_ERROR_EAGAIN) {
@@ -1364,13 +1368,17 @@ int ssh_socket_close(ssh_socket_t *ssh)
 
     if (ssh->session) {
         int rc = LIBSSH2_ERROR_EAGAIN;
-        for (int i = 0; i < SSH_CLEANUP_RETRIES && rc == LIBSSH2_ERROR_EAGAIN; i++) {
-            rc = ssh_cleanup_wait(ssh, libssh2_session_disconnect(ssh->session, "closed"));
+        {
+          for (int i = 0; i < SSH_CLEANUP_RETRIES && rc == LIBSSH2_ERROR_EAGAIN; i++) {
+              rc = ssh_cleanup_wait(ssh, libssh2_session_disconnect(ssh->session, "closed"));
+          }
         }
 
         rc = LIBSSH2_ERROR_EAGAIN;
-        for (int i = 0; i < SSH_CLEANUP_RETRIES && rc == LIBSSH2_ERROR_EAGAIN; i++) {
-            rc = ssh_cleanup_wait(ssh, libssh2_session_free(ssh->session));
+        {
+          for (int i = 0; i < SSH_CLEANUP_RETRIES && rc == LIBSSH2_ERROR_EAGAIN; i++) {
+              rc = ssh_cleanup_wait(ssh, libssh2_session_free(ssh->session));
+          }
         }
 
         if (rc != LIBSSH2_ERROR_EAGAIN) {

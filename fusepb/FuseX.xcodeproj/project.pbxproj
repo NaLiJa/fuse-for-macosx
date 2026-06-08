@@ -308,6 +308,10 @@
 		FE2DAC802F32AB6C009AC45A /* vfile_ext.c in Sources */ = {isa = PBXBuildFile; fileRef = FE2DAC7F2F32AB6C009AC45A /* vfile_ext.c */; };
 		FE2DAC812F32AB6C009AC45A /* vfile.c in Sources */ = {isa = PBXBuildFile; fileRef = FE2DAC7D2F32AB6C009AC45A /* vfile.c */; };
 		FE3FF185294F1220009F571F /* spectranet.rom in Resources */ = {isa = PBXBuildFile; fileRef = FE3FF184294F1220009F571F /* spectranet.rom */; };
+		FE8E3FD62FD70BD9009FDB81 /* ssh.c in Sources */ = {isa = PBXBuildFile; fileRef = FE8E3FD52FD70BD9009FDB81 /* ssh.c */; };
+		FE8E3FD82FD70FFB009FDB81 /* libssh2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE8E3FD72FD70FFB009FDB81 /* libssh2.framework */; };
+		FE8E3FD92FD70FFB009FDB81 /* libssh2.framework in Copy Files */ = {isa = PBXBuildFile; fileRef = FE8E3FD72FD70FFB009FDB81 /* libssh2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		FE8E40202FD71100009FDB81 /* (null) in Copy Files */ = {isa = PBXBuildFile; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FE9443BC2F881C540059A578 /* engine_argv.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9443B72F881C540059A578 /* engine_argv.c */; };
 		FE9443BD2F881C540059A578 /* lexer.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9443B02F881C540059A578 /* lexer.c */; };
 		FE9443BE2F881C540059A578 /* engine_fs.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9443B92F881C540059A578 /* engine_fs.c */; };
@@ -424,7 +428,9 @@
 			files = (
 				B6FA75C60C1D76A5007F5A10 /* audiofile.framework in Copy Files */,
 				FED24C472EE104C60013DD32 /* mbedtls.framework in Copy Files */,
+				FE8E40202FD71100009FDB81 /* (null) in Copy Files */,
 				B6D65C3818A645A100170B64 /* gcrypt.framework in Copy Files */,
+				FE8E3FD92FD70FFB009FDB81 /* libssh2.framework in Copy Files */,
 			);
 			name = "Copy Files";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -897,6 +903,9 @@
 		FE2DAC7E2F32AB6C009AC45A /* vfile_ext.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vfile_ext.h; sourceTree = "<group>"; };
 		FE2DAC7F2F32AB6C009AC45A /* vfile_ext.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vfile_ext.c; sourceTree = "<group>"; };
 		FE3FF184294F1220009F571F /* spectranet.rom */ = {isa = PBXFileReference; lastKnownFileType = file; name = spectranet.rom; path = ../roms/spectranet.rom; sourceTree = "<group>"; };
+		FE8E3FD42FD70BD9009FDB81 /* ssh.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ssh.h; sourceTree = "<group>"; };
+		FE8E3FD52FD70BD9009FDB81 /* ssh.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ssh.c; sourceTree = "<group>"; };
+		FE8E3FD72FD70FFB009FDB81 /* libssh2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libssh2.framework; path = ../3rdparty/libssh2/build/Deployment/libssh2.framework; sourceTree = "<group>"; };
 		FE9443AD2F881C540059A578 /* ast.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ast.h; sourceTree = "<group>"; };
 		FE9443AE2F881C540059A578 /* ast.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ast.c; sourceTree = "<group>"; };
 		FE9443AF2F881C540059A578 /* lexer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lexer.h; sourceTree = "<group>"; };
@@ -950,6 +959,7 @@
 				FED24C482EE104EB0013DD32 /* mbedtls.framework in Frameworks */,
 				B6FA759D0C1D7507007F5A10 /* audiofile.framework in Frameworks */,
 				B61F469A09121DF100C8096C /* Cocoa.framework in Frameworks */,
+				FE8E3FD82FD70FFB009FDB81 /* libssh2.framework in Frameworks */,
 				B61F469B09121DF100C8096C /* Foundation.framework in Frameworks */,
 				FED24DE32EE108360013DD32 /* Security.framework in Frameworks */,
 				B61F469C09121DF100C8096C /* AppKit.framework in Frameworks */,
@@ -1087,6 +1097,7 @@
 		29B97323FDCFA39411CA2CEA /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				FE8E3FD72FD70FFB009FDB81 /* libssh2.framework */,
 				FED24DE22EE108360013DD32 /* Security.framework */,
 				8287F6EDEBAC4FFA8708CC4E /* Metal.framework */,
 				EAA54F20E902456BACB24998 /* MetalKit.framework */,
@@ -1841,6 +1852,8 @@
 				FED23B102EE096F10013DD32 /* mbedtls_config.h */,
 				FED23B112EE096F10013DD32 /* tls.h */,
 				FED23B122EE096F10013DD32 /* tls.c */,
+				FE8E3FD42FD70BD9009FDB81 /* ssh.h */,
+				FE8E3FD52FD70BD9009FDB81 /* ssh.c */,
 			);
 			path = security;
 			sourceTree = "<group>";
@@ -2214,6 +2227,7 @@
 				B6DCBBC6114FA0E700DC9A11 /* csw.c in Sources */,
 				B6D71DD61F6AA1E70000D666 /* mmc.c in Sources */,
 				B6DCBBC7114FA0E700DC9A11 /* dck.c in Sources */,
+				FE8E3FD62FD70BD9009FDB81 /* ssh.c in Sources */,
 				FE2DAC7B2F32A500009AC45A /* httpc.c in Sources */,
 				FE2DAC772F32A480009AC45A /* xfs_https.c in Sources */,
 				B6DCBBD2114FA0E700DC9A11 /* ide.c in Sources */,
@@ -2331,10 +2345,12 @@
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_2)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_3)",
+					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_4)",
 				);
 				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SRCROOT)/../3rdparty/audiofile/build/Deployment\"";
 				FRAMEWORK_SEARCH_PATHS_QUOTED_2 = "\"$(SRCROOT)/../3rdparty/libgcrypt/build/Deployment\"";
 				FRAMEWORK_SEARCH_PATHS_QUOTED_3 = "\"$(SRCROOT)/../3rdparty/mbedtls/build/Deployment\"";
+				FRAMEWORK_SEARCH_PATHS_QUOTED_4 = "\"$(SRCROOT)/../3rdparty/libssh2/build/Deployment\"";
 				GCC_C_LANGUAGE_STANDARD = gnu89;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
@@ -2351,6 +2367,7 @@
 					"$(PROJECT_DIR)",
 					/usr/local/include,
 					"$(SDKROOT)/usr/include/libxml2",
+					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_4)/libssh2.framework/Headers",
 				);
 				INFOPLIST_FILE = "Info-FuseX.plist";
 				INSTALL_PATH = /Applications;
@@ -2397,10 +2414,12 @@
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_2)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_3)",
+					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_4)",
 				);
 				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SRCROOT)/../3rdparty/audiofile/build/Deployment\"";
 				FRAMEWORK_SEARCH_PATHS_QUOTED_2 = "\"$(SRCROOT)/../3rdparty/libgcrypt/build/Deployment\"";
 				FRAMEWORK_SEARCH_PATHS_QUOTED_3 = "\"$(SRCROOT)/../3rdparty/mbedtls/build/Deployment\"";
+				FRAMEWORK_SEARCH_PATHS_QUOTED_4 = "\"$(SRCROOT)/../3rdparty/libssh2/build/Deployment\"";
 				GCC_C_LANGUAGE_STANDARD = gnu89;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
@@ -2416,6 +2435,7 @@
 					"$(PROJECT_DIR)",
 					/usr/local/include,
 					"$(SDKROOT)/usr/include/libxml2",
+					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_4)/libssh2.framework/Headers",
 				);
 				INFOPLIST_FILE = "Info-FuseX.plist";
 				INSTALL_PATH = /Applications;
@@ -2461,10 +2481,12 @@
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_2)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_3)",
+					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_4)",
 				);
 				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SRCROOT)/../3rdparty/audiofile/build/Deployment\"";
 				FRAMEWORK_SEARCH_PATHS_QUOTED_2 = "\"$(SRCROOT)/../3rdparty/libgcrypt/build/Deployment\"";
 				FRAMEWORK_SEARCH_PATHS_QUOTED_3 = "\"$(SRCROOT)/../3rdparty/mbedtls/build/Deployment\"";
+				FRAMEWORK_SEARCH_PATHS_QUOTED_4 = "\"$(SRCROOT)/../3rdparty/libssh2/build/Deployment\"";
 				GCC_C_LANGUAGE_STANDARD = gnu89;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
@@ -2480,6 +2502,7 @@
 					"$(PROJECT_DIR)",
 					/usr/local/include,
 					"$(SDKROOT)/usr/include/libxml2",
+					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_4)/libssh2.framework/Headers",
 				);
 				INFOPLIST_FILE = "Info-FuseX.plist";
 				INSTALL_PATH = /Applications;

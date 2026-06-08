@@ -9,11 +9,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/select.h>
 #include <sys/stat.h>
 #include <time.h>
 #if defined(WIN32) || defined(_WIN32)
+#include <winsock2.h>
 #include <direct.h>
+#else
+#include <sys/select.h>
 #endif
 
 #include "mbedtls_config.h"
@@ -1351,7 +1353,7 @@ int ssh_socket_close(ssh_socket_t *ssh)
         }
 
         rc = LIBSSH2_ERROR_EAGAIN;
-        for (i = 0; i < SSH_CLEANUP_RETRIES && rc == LIBSSH2_ERROR_EAGAIN; i++) {
+        for (int i = 0; i < SSH_CLEANUP_RETRIES && rc == LIBSSH2_ERROR_EAGAIN; i++) {
             rc = ssh_cleanup_wait(ssh, libssh2_channel_free(ssh->channel));
         }
 
@@ -1367,7 +1369,7 @@ int ssh_socket_close(ssh_socket_t *ssh)
         }
 
         rc = LIBSSH2_ERROR_EAGAIN;
-        for (i = 0; i < SSH_CLEANUP_RETRIES && rc == LIBSSH2_ERROR_EAGAIN; i++) {
+        for (int i = 0; i < SSH_CLEANUP_RETRIES && rc == LIBSSH2_ERROR_EAGAIN; i++) {
             rc = ssh_cleanup_wait(ssh, libssh2_session_free(ssh->session));
         }
 

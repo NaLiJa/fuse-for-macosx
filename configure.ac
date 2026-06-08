@@ -904,6 +904,24 @@ fi
 AC_SUBST(MBEDTLS_CFLAGS)
 AC_SUBST(MBEDTLS_LIBS)
 
+LIBSSH2_CFLAGS=
+LIBSSH2_LIBS=
+if test "$build_spectranet" = yes; then
+  libssh2_libdir="$srcdir/3rdparty/dist/lib"
+  libssh2_incdir="$srcdir/3rdparty/dist/include"
+  AC_MSG_CHECKING([for libssh2 (Spectranet SSH)])
+  if test -f "$libssh2_libdir/libssh2.a" && test -f "$libssh2_incdir/libssh2.h"; then
+    LIBSSH2_CFLAGS="-I$libssh2_incdir"
+    LIBSSH2_LIBS="-L$libssh2_libdir -lssh2"
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_RESULT([no])
+    AC_MSG_ERROR([Spectranet SSH needs libssh2 in 3rdparty/dist (headers + libssh2.a). From the repo: cd 3rdparty && make libssh2])
+  fi
+fi
+AC_SUBST(LIBSSH2_CFLAGS)
+AC_SUBST(LIBSSH2_LIBS)
+
 dnl See if Linux TAP devices are supported
 AC_MSG_CHECKING(whether Linux TAP devices are supported)
 ac_save_CPPFLAGS="$CPPFLAGS"

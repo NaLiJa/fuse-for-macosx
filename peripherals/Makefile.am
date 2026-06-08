@@ -90,7 +90,8 @@ fuse_SOURCES += \
                 peripherals/fs/xfs_https.c \
                 peripherals/http/httpc.c \
                 peripherals/http/http_sck.c \
-                peripherals/security/tls.c
+                peripherals/security/tls.c \
+                peripherals/security/ssh.c
 endif
 
 noinst_HEADERS += \
@@ -137,4 +138,6 @@ noinst_HEADERS += \
                   peripherals/nic/enc28j60.h \
                   peripherals/nic/w5100.h \
                   peripherals/nic/w5100_internals.h \
-                  peripherals/security/tls.h
+                  peripherals/security/tls.h \
+                  peripherals/security/ssh.h \
+                  peripherals/security/mbedtls_config.h

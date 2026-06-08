@@ -56,8 +56,10 @@ for tool in gcc make pkg-config perl; do
     echo "  OK $tool"
 done
 
-if [[ ! -d "$SCRIPT_DIR/3rdparty/dist/bin" ]] || [[ ! -f "$SCRIPT_DIR/3rdparty/dist/lib/libmbedtls.a" ]]; then
-    echo -e "\n${GREEN}Building 3rdparty (libspectrum, mbedTLS for Spectranet, optional deps)...${NC}"
+if [[ ! -d "$SCRIPT_DIR/3rdparty/dist/bin" ]] || \
+   [[ ! -f "$SCRIPT_DIR/3rdparty/dist/lib/libmbedtls.a" ]] || \
+   [[ ! -f "$SCRIPT_DIR/3rdparty/dist/lib/libssh2.a" ]]; then
+    echo -e "\n${GREEN}Building 3rdparty (libspectrum, mbedTLS/libssh2 for Spectranet, optional deps)...${NC}"
     ( cd "$SCRIPT_DIR/3rdparty" && make -j"$(nproc 2>/dev/null || echo 4)" )
 else
     echo -e "\n${GREEN}Using existing 3rdparty/dist${NC}"

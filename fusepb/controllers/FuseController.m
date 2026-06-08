@@ -2645,14 +2645,19 @@ save_as_exit:
     [self openFile:fsrep];
     [[DisplayOpenGLView instance] unpause];
   } else {
-    if( utils_read_file( fsrep, &file ) ) fuse_abort();
-
-    if( libspectrum_identify_file( &type, fsrep, file.buffer, file.length ) ) {
-      utils_close_file( &file );
-      fuse_abort();
+    /* AppKit routes stray command-line arguments here on cold launch; an
+       argument that is not a readable, identifiable file must be declined. */
+    if( utils_read_file( fsrep, &file ) ) {
+      fprintf( stderr, "%s: couldn't open `%s'\n", fuse_progname, fsrep );
+      return NO;
     }
 
-    if( libspectrum_identify_class( &lsclass, type ) ) fuse_abort();
+    if( libspectrum_identify_file( &type, fsrep, file.buffer, file.length ) ||
+        libspectrum_identify_class( &lsclass, type ) ) {
+      fprintf( stderr, "%s: couldn't identify `%s'\n", fuse_progname, fsrep );
+      utils_close_file( &file );
+      return NO;
+    }
 
     switch( lsclass ) {
 

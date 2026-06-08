@@ -34,6 +34,7 @@
 #endif
 
 #include "../security/tls.h"
+#include "../security/ssh.h"
 
 typedef enum w5100_socket_mode {
   W5100_SOCKET_MODE_CLOSED = 0x00,
@@ -118,6 +119,8 @@ typedef struct nic_w5100_socket_t {
 
   compat_socket_t fd;       /* Socket file descriptor */
   tls_socket_t *tls_socket; /* TLS socket wrapper (NULL if not using TLS) */
+  ssh_socket_t *ssh_socket; /* SSH offload wrapper (NULL if not using SSH) */
+  compat_socket_selfpipe_t *io_selfpipe; /* Wake I/O thread for SSH control lines */
   int bind_count;           /* Number of writes to the Sn_PORTx registers we've received */
   int socket_bound;         /* True once we've bound the socket to a port */
   int write_pending;        /* True if we're waiting to write data on this socket */

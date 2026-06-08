@@ -16,3 +16,6 @@
 [submodule "3rdparty/mbedtls"]
 	path = 3rdparty/mbedtls
 	url = ../fuse-mbedtls
+[submodule "3rdparty/libssh2"]
+	path = 3rdparty/libssh2
+	url = ../libssh2

@@ -1,4 +1,4 @@
-.PHONY: 3rdparty audiofile libgcrypt FuseGenerator FuseImporter mbedtls clean-3rdparty list-teams fusex archive dist dmg release release-clean release-notarize release-export clean
+.PHONY: 3rdparty audiofile libgcrypt FuseGenerator FuseImporter mbedtls libssh2 clean-3rdparty list-teams fusex archive dist dmg release release-clean release-notarize release-export clean
 
 # Signing parameters (can be overridden from command line)
 # By default, use the signing settings already stored in the Xcode projects.
@@ -44,7 +44,7 @@ all: 3rdparty
 fusepb:
 	cd fusepb && make clean && make
 
-3rdparty: audiofile libgcrypt FuseGenerator FuseImporter mbedtls
+3rdparty: audiofile libgcrypt FuseGenerator FuseImporter mbedtls libssh2
 
 audiofile:
 	@echo "Building audiofile Framework..."
@@ -97,6 +97,17 @@ mbedtls:
 	cd 3rdparty/mbedtls && \
 	xcodebuild -project mbedtls.xcodeproj \
 		-target "mbedtls" \
+		-configuration Deployment \
+		SYMROOT=build \
+		BUILD_DIR=build \
+		CONFIGURATION_BUILD_DIR=build/Deployment \
+		$(XCODEBUILD_SIGN_ARGS)
+
+libssh2: mbedtls
+	@echo "Building libssh2 Framework..."
+	cd 3rdparty/libssh2 && \
+	xcodebuild -project libssh2.xcodeproj \
+		-target "libssh2" \
 		-configuration Deployment \
 		SYMROOT=build \
 		BUILD_DIR=build \
@@ -224,6 +235,7 @@ clean-3rdparty:
 	rm -rf 3rdparty/FuseGenerator/build
 	rm -rf 3rdparty/FuseImporter/build
 	rm -rf 3rdparty/mbedtls/build
+	rm -rf 3rdparty/libssh2/build
 
 clean: clean-3rdparty
 	@echo "Cleaning FuseX build artifacts..."

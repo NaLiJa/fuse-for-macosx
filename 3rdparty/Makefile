@@ -15,15 +15,18 @@ NC := \033[0m
 # submodule path, so default Windows deps stay minimal and build with current GCC.
 AUDIOFILE_SRC := $(shell if [ -d "audiofile-patched" ]; then echo "audiofile-patched"; else echo ""; fi)
 
-.PHONY: all clean distclean libspectrum audiofile libxml2 mbedtls check-tools check-libspectrum extract-audiofile extract-libxml2 libspectrum-with-audiofile
+.PHONY: all clean distclean libspectrum audiofile libxml2 mbedtls libssh2 check-tools check-libspectrum check-libssh2 extract-audiofile extract-libxml2 libspectrum-with-audiofile
 
-# Default: libspectrum (+ optional libxml2 / mbedtls if present).
+# Default: libspectrum (+ optional libxml2 / mbedtls / libssh2 if present).
 all: check-tools check-libspectrum dist-dirs libspectrum
 	@if [ -d "libxml2-2.9.12" ] || [ -f "libxml2-2.9.12.tar.gz" ]; then \
 		$(MAKE) libxml2; \
 	fi
 	@if [ -d "mbedtls/src" ] && [ -f "mbedtls/src/Makefile" ]; then \
 		$(MAKE) mbedtls; \
+	fi
+	@if [ -d "libssh2/src" ] && [ -f "libssh2/src/CMakeLists.txt" ]; then \
+		$(MAKE) libssh2; \
 	fi
 	@echo ""
 	@echo "$(GREEN)=== Library build complete! ===$(NC)"
@@ -38,6 +41,7 @@ all: check-tools check-libspectrum dist-dirs libspectrum
 	@if [ -n "$(AUDIOFILE_SRC)" ]; then echo "  ✓ audiofile"; fi
 	@if [ -d "libxml2-2.9.12" ]; then echo "  ✓ libxml2"; fi
 	@if [ -d "mbedtls/src" ] && [ -f "mbedtls/src/Makefile" ]; then echo "  ✓ mbedtls"; fi
+	@if [ -d "libssh2/src" ] && [ -f "libssh2/src/CMakeLists.txt" ]; then echo "  ✓ libssh2"; fi
 	@echo ""
 	@echo "You can now run ./build_win32.sh from the repository root."
 
@@ -49,10 +53,10 @@ dist-dirs:
 
 check-tools:
 	@echo "$(GREEN)Checking for required tools...$(NC)"
-	@for tool in gcc make pkg-config; do \
+	@for tool in gcc make pkg-config cmake; do \
 		if ! command -v $$tool >/dev/null 2>&1; then \
 			echo "$(RED)Error: $$tool is not installed$(NC)"; \
-			echo "Install with: pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-pkg-config"; \
+			echo "Install with: pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-pkg-config mingw-w64-x86_64-cmake"; \
 			exit 1; \
 		fi; \
 		echo "  ✓ $$tool found"; \
@@ -64,6 +68,14 @@ check-libspectrum:
 	@if [ ! -d "libspectrum" ]; then \
 		echo "$(YELLOW)libspectrum submodule missing; initializing from repo root...$(NC)"; \
 		cd .. && git submodule update --init --recursive 3rdparty/libspectrum && cd 3rdparty; \
+	fi
+
+check-libssh2:
+	@echo ""
+	@echo "$(GREEN)Checking for libssh2...$(NC)"
+	@if [ ! -d "libssh2/src" ] || [ ! -f "libssh2/src/CMakeLists.txt" ]; then \
+		echo "$(YELLOW)libssh2 submodule missing; initializing from repo root...$(NC)"; \
+		cd .. && git submodule update --init --recursive 3rdparty/libssh2 && cd 3rdparty; \
 	fi
 
 extract-audiofile:
@@ -156,6 +168,32 @@ mbedtls:
 		done; \
 	fi
 
+libssh2: mbedtls dist-dirs check-libssh2
+	@if [ -d "libssh2/src" ] && [ -f "libssh2/src/CMakeLists.txt" ]; then \
+		if [ ! -f "$(DIST_PREFIX)/lib/libmbedcrypto.a" ]; then \
+			echo "$(RED)Error: libssh2 needs mbedTLS in $(DIST_PREFIX) (run: make mbedtls)$(NC)"; \
+			exit 1; \
+		fi; \
+		echo ""; \
+		echo "$(GREEN)Building libssh2 (Spectranet SSH)...$(NC)"; \
+		rm -rf libssh2/src/build; \
+		mkdir -p libssh2/src/build; \
+		cd libssh2/src/build && \
+		cmake .. \
+			-G "Unix Makefiles" \
+			-DCMAKE_INSTALL_PREFIX="$(DIST_PREFIX)" \
+			-DCMAKE_BUILD_TYPE=Release \
+			-DBUILD_SHARED_LIBS=OFF \
+			-DBUILD_STATIC_LIBS=ON \
+			-DBUILD_EXAMPLES=OFF \
+			-DBUILD_TESTING=OFF \
+			-DCRYPTO_BACKEND=mbedTLS \
+			-DMBEDTLS_INCLUDE_DIR="$(DIST_PREFIX)/include" \
+			-DMBEDCRYPTO_LIBRARY="$(DIST_PREFIX)/lib/libmbedcrypto.a" && \
+		$(MAKE) && \
+		$(MAKE) install; \
+	fi
+
 clean:
 	@echo "$(YELLOW)Cleaning build artifacts...$(NC)"
 	@if [ -d "libspectrum" ] && [ -f "libspectrum/Makefile" ]; then \
@@ -172,6 +210,9 @@ clean:
 	fi
 	@if [ -d "mbedtls/src" ] && [ -f "mbedtls/src/library/Makefile" ]; then \
 		cd mbedtls/src && $(MAKE) clean || true; \
+	fi
+	@if [ -d "libssh2/src/build" ]; then \
+		rm -rf libssh2/src/build; \
 	fi
 
 distclean: clean

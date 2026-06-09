@@ -45,7 +45,42 @@
 #include "w5100.h"
 #include "w5100_internals.h"
 #include "../security/tls.h"
+#include "../security/ssh.h"
 #include "dns_resolver.h"
+
+static int g_active_ssh_socket = -1;
+
+static void w5100_socket_acquire_lock( nic_w5100_socket_t *socket );
+static void w5100_socket_release_lock( nic_w5100_socket_t *socket );
+
+static int
+ssh_session_claim( int socket_id )
+{
+  if( g_active_ssh_socket >= 0 && g_active_ssh_socket != socket_id )
+    return 0;
+  g_active_ssh_socket = socket_id;
+  return 1;
+}
+
+static void
+ssh_session_release( int socket_id )
+{
+  if( g_active_ssh_socket == socket_id )
+    g_active_ssh_socket = -1;
+}
+
+static void
+w5100_ssh_cleanup( nic_w5100_socket_t *socket )
+{
+  if( socket->ssh_socket ) {
+    ssh_socket_close( socket->ssh_socket );
+    ssh_socket_free( socket->ssh_socket );
+    socket->ssh_socket = NULL;
+  }
+
+  ssh_session_release( socket->id );
+  socket->io_selfpipe = NULL;
+}
 
 enum w5100_socket_command {
   W5100_SOCKET_COMMAND_OPEN = 1 << 0,
@@ -62,6 +97,8 @@ w5100_socket_init_common( nic_w5100_socket_t *socket )
 {
   socket->fd = compat_socket_invalid;
   socket->tls_socket = NULL;
+  socket->ssh_socket = NULL;
+  socket->io_selfpipe = NULL;
   socket->bind_count = 0;
   socket->socket_bound = 0;
   socket->ok_for_io = 0;
@@ -123,6 +160,8 @@ w5100_socket_clean( nic_w5100_socket_t *socket )
     tls_socket_free( socket->tls_socket );
     socket->tls_socket = NULL;
   }
+
+  w5100_ssh_cleanup( socket );
 
   if( socket->fd != compat_socket_invalid ) {
     compat_socket_close( socket->fd );
@@ -311,6 +350,31 @@ w5100_socket_connect( nic_w5100_t *self, nic_w5100_socket_t *socket )
         return;
       }
     }
+    else if( socket->mode == W5100_SOCKET_MODE_TCP && port == 22 ) {
+      uint32_t ipv4_host = ntohl( sa.sin_addr.s_addr );
+      const char *hostname = dns_resolve_hostname( ipv4_host );
+      const char *host = ( hostname && hostname[0] ) ? hostname :
+                         inet_ntoa( sa.sin_addr );
+
+      if( !ssh_session_claim( socket->id ) ) {
+        nic_w5100_error( UI_ERROR_ERROR,
+          "w5100: SSH already active on another socket (socket %d)\n",
+          socket->id );
+        socket->ir |= 1 << 3;
+        socket->state = W5100_SOCKET_STATE_CLOSED;
+        return;
+      }
+
+      socket->ssh_socket = ssh_socket_allocate( host, port, "" );
+      if( !socket->ssh_socket ) {
+        ssh_session_release( socket->id );
+        nic_w5100_error( UI_ERROR_ERROR,
+          "w5100: failed to allocate SSH socket for socket %d\n", socket->id );
+        socket->ir |= 1 << 3;
+        socket->state = W5100_SOCKET_STATE_CLOSED;
+        return;
+      }
+    }
 
     if( connect( socket->fd, (struct sockaddr*)&sa, sizeof(sa) ) == -1 ) {
       nic_w5100_error( UI_ERROR_ERROR,
@@ -321,6 +385,12 @@ w5100_socket_connect( nic_w5100_t *self, nic_w5100_socket_t *socket )
       if( socket->tls_socket ) {
         tls_socket_free( socket->tls_socket );
         socket->tls_socket = NULL;
+      }
+
+      if( socket->ssh_socket ) {
+        ssh_socket_free( socket->ssh_socket );
+        socket->ssh_socket = NULL;
+        ssh_session_release( socket->id );
       }
 
       socket->ir |= 1 << 3;
@@ -342,9 +412,23 @@ w5100_socket_connect( nic_w5100_t *self, nic_w5100_socket_t *socket )
       }
       /* Handshake completed successfully */
     }
+    else if( socket->ssh_socket ) {
+      socket->io_selfpipe = self->selfpipe;
+      if( ssh_socket_connect( socket->ssh_socket, socket->fd ) != 0 ) {
+        nic_w5100_error( UI_ERROR_ERROR,
+          "w5100: SSH connect failed for socket %d: %s\n",
+          socket->id, ssh_socket_last_error( socket->ssh_socket ) );
+        w5100_ssh_cleanup( socket );
+        socket->ir |= 1 << 3;
+        socket->state = W5100_SOCKET_STATE_CLOSED;
+        return;
+      }
+    }
 
     socket->ir |= 1 << 0;
     socket->state = W5100_SOCKET_STATE_ESTABLISHED;
+    if( socket->ssh_socket )
+      compat_socket_selfpipe_wake( self->selfpipe );
   }
 }
 
@@ -353,6 +437,19 @@ w5100_socket_discon( nic_w5100_t *self, nic_w5100_socket_t *socket )
 {
   if( socket->state == W5100_SOCKET_STATE_ESTABLISHED ||
     socket->state == W5100_SOCKET_STATE_CLOSE_WAIT ) {
+    if( socket->tls_socket ) {
+      tls_close( socket->tls_socket );
+      tls_socket_free( socket->tls_socket );
+      socket->tls_socket = NULL;
+    }
+    w5100_ssh_cleanup( socket );
+    if( socket->fd != compat_socket_invalid ) {
+      compat_socket_close( socket->fd );
+      socket->fd = compat_socket_invalid;
+    }
+    socket->socket_bound = 0;
+    socket->ok_for_io = 0;
+    socket->write_pending = 0;
     socket->ir |= 1 << 1;
     socket->state = W5100_SOCKET_STATE_CLOSED;
     compat_socket_selfpipe_wake( self->selfpipe );
@@ -364,20 +461,22 @@ w5100_socket_discon( nic_w5100_t *self, nic_w5100_socket_t *socket )
 static void
 w5100_socket_close( nic_w5100_t *self, nic_w5100_socket_t *socket )
 {
+  if( socket->tls_socket ) {
+    tls_close( socket->tls_socket );
+    tls_socket_free( socket->tls_socket );
+    socket->tls_socket = NULL;
+  }
+  w5100_ssh_cleanup( socket );
   if( socket->fd != compat_socket_invalid ) {
-    if( socket->tls_socket ) {
-      tls_close( socket->tls_socket );
-      tls_socket_free( socket->tls_socket );
-      socket->tls_socket = NULL;
-    }
     compat_socket_close( socket->fd );
     socket->fd = compat_socket_invalid;
-    socket->socket_bound = 0;
-    socket->ok_for_io = 0;
-    socket->state = W5100_SOCKET_STATE_CLOSED;
-    compat_socket_selfpipe_wake( self->selfpipe );
-    nic_w5100_debug( "w5100: closed socket %d\n", socket->id );
   }
+  socket->socket_bound = 0;
+  socket->ok_for_io = 0;
+  socket->write_pending = 0;
+  socket->state = W5100_SOCKET_STATE_CLOSED;
+  compat_socket_selfpipe_wake( self->selfpipe );
+  nic_w5100_debug( "w5100: closed socket %d\n", socket->id );
 }
 
 static void
@@ -621,6 +720,8 @@ nic_w5100_socket_add_to_sets( nic_w5100_t *self, nic_w5100_socket_t *socket, fd_
        any room in our buffer (no header necessary for TCP). */
     int tcp_read = socket->state == W5100_SOCKET_STATE_ESTABLISHED &&
       0x800 - socket->rx_rsr >= 1;
+    int ssh_control_read = socket->ssh_socket && tcp_read &&
+      ssh_socket_has_pending_control( socket->ssh_socket );
 
     int tcp_listen = socket->state == W5100_SOCKET_STATE_LISTEN;
 
@@ -631,6 +732,10 @@ nic_w5100_socket_add_to_sets( nic_w5100_t *self, nic_w5100_socket_t *socket, fd_
       if( socket->fd > *max_fd )
         *max_fd = socket->fd;
       nic_w5100_debug( "w5100: checking for read on socket %d with fd %d; max fd %d\n", socket->id, socket->fd, *max_fd );
+    }
+
+    if( ssh_control_read ) {
+      compat_socket_selfpipe_wake( self->selfpipe );
     }
 
     if( socket->write_pending ) {
@@ -695,8 +800,11 @@ w5100_socket_process_read( nic_w5100_t *self, nic_w5100_socket_t *socket )
     }
   }
   else {
-    /* Use TLS if available, otherwise use regular recv */
-    if( socket->tls_socket && socket->tls_socket->handshake_complete ) {
+    /* Use SSH/TLS if available, otherwise use regular recv */
+    if( socket->ssh_socket ) {
+      bytes_read = ssh_socket_recv( socket->ssh_socket, buffer, bytes_free );
+    }
+    else if( socket->tls_socket && socket->tls_socket->handshake_complete ) {
       bytes_read = tls_read( socket->tls_socket, buffer, bytes_free );
       /* Check if there's more data available and wake the I/O thread */
       if( bytes_read > 0 && socket->tls_socket->has_pending_data ) {
@@ -741,6 +849,9 @@ w5100_socket_process_read( nic_w5100_t *self, nic_w5100_socket_t *socket )
     nic_w5100_debug( "w5100: EOF on %s socket %d; errno %d: %s\n",
                      description, socket->id, compat_socket_get_error(),
                      compat_socket_get_strerror() );
+  }
+  else if( bytes_read == -2 ) {
+    /* SSH/TLS has no decoded payload ready yet. Keep the socket open. */
   }
   else {
     nic_w5100_debug( "w5100: error %d reading from %s socket %d: %s\n",
@@ -812,8 +923,11 @@ w5100_socket_process_tcp_write( nic_w5100_t *self, nic_w5100_socket_t *socket )
   if( offset + length > 0x800 )
     length = 0x800 - offset;
 
-  /* Use TLS if available, otherwise use regular send */
-  if( socket->tls_socket && socket->tls_socket->handshake_complete ) {
+  /* Use SSH/TLS if available, otherwise use regular send */
+  if( socket->ssh_socket ) {
+    bytes_sent = ssh_socket_send( socket->ssh_socket, data, length );
+  }
+  else if( socket->tls_socket && socket->tls_socket->handshake_complete ) {
     bytes_sent = tls_write( socket->tls_socket, data, length );
   }
   else {
@@ -829,6 +943,8 @@ w5100_socket_process_tcp_write( nic_w5100_t *self, nic_w5100_socket_t *socket )
       socket->write_pending = 0;
       socket->ir |= 1 << 4;
     }
+    if( socket->ssh_socket )
+      compat_socket_selfpipe_wake( self->selfpipe );
   }
   else if( bytes_sent == 0 ) {
     /* TLS would block, keep write_pending set */
@@ -870,6 +986,12 @@ nic_w5100_socket_process_io( nic_w5100_t *self, nic_w5100_socket_t *socket, fd_s
         socket->ir |= 1 << 3;
         socket->state = W5100_SOCKET_STATE_CLOSED;
       }
+    }
+
+    if( socket->ssh_socket && socket->state == W5100_SOCKET_STATE_ESTABLISHED &&
+        ssh_socket_has_pending_control( socket->ssh_socket ) &&
+        0x800 - socket->rx_rsr >= 1 ) {
+      w5100_socket_process_read( self, socket );
     }
 
     if( FD_ISSET( socket->fd, &readfds ) ) {

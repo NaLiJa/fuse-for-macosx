@@ -56,6 +56,18 @@ static volatile char gdbserver_trapped = 0;
 static int gdbserver_port = 0;
 static int gdbserver_requested_port = 0;
 static int gdbserver_last_trap_reason = DEBUG_TRAP_REASON_SIGNAL_RECEIVED;
+static volatile int gdbserver_emulating = 0;
+static pthread_mutex_t emulating_mutex;
+static pthread_cond_t emulating_cond;
+
+void gdbserver_note_emulating(void)
+{
+    if (gdbserver_emulating) return;
+    pthread_mutex_lock(&emulating_mutex);
+    gdbserver_emulating = 1;
+    pthread_cond_broadcast(&emulating_cond);
+    pthread_mutex_unlock(&emulating_mutex);
+}
 
 static pthread_t network_thread_id;
 /** Set while tearing the listener down; unblocks gdbserver_execute_on_main_thread and gdbserver_activate_with_reason. */
@@ -681,6 +693,14 @@ static int process_network(int socket)
 
 static void* network_thread(void* arg)
 {
+    pthread_mutex_lock(&emulating_mutex);
+    while (!gdbserver_emulating && !gdbserver_shutting_down &&
+           gdbserver_debugging_enabled)
+    {
+        pthread_cond_wait(&emulating_cond, &emulating_mutex);
+    }
+    pthread_mutex_unlock(&emulating_mutex);
+
     while (gdbserver_debugging_enabled)
     {
         {
@@ -758,9 +778,11 @@ void gdbserver_init()
 {
     pthread_cond_init(&trapped_cond, NULL);
     pthread_cond_init(&response_cond, NULL);
+    pthread_cond_init(&emulating_cond, NULL);
     pthread_mutex_init(&trap_process_mutex, NULL);
     pthread_mutex_init(&network_read_mutex, NULL);
     pthread_mutex_init(&network_write_mutex, NULL);
+    pthread_mutex_init(&emulating_mutex, NULL);
     
     // Initialize packets subsystem
     packets_init();
@@ -887,6 +909,10 @@ void gdbserver_stop()
     pthread_cond_broadcast(&response_cond);
     pthread_cond_broadcast(&trapped_cond);
     pthread_mutex_unlock(&trap_process_mutex);
+
+    pthread_mutex_lock(&emulating_mutex);
+    pthread_cond_broadcast(&emulating_cond);
+    pthread_mutex_unlock(&emulating_mutex);
 
 #ifdef WIN32
     if (gdbserver_client_socket != -1)

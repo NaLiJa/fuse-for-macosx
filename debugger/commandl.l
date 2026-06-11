@@ -161,3 +161,13 @@ end             { BEGIN(INITIAL); return DEBUGGER_END; }
 \n              { return '\n'; }
 
 }
+
+%%
+
+/* Reset the lexer start condition to INITIAL so the next command parses from
+   a clean state, regardless of how the previous one left it. */
+void
+debugger_command_lexer_reset( void )
+{
+  BEGIN( INITIAL );
+}

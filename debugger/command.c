@@ -43,6 +43,7 @@ static char *command_ptr;
 
 int yyparse( void );
 int yywrap( void );
+void debugger_command_lexer_reset( void );
 
 /* Evaluate the debugger command given in 'command' */
 void
@@ -56,7 +57,9 @@ debugger_command_evaluate( const char *command )
 
   /* Start parsing at the start of the given command */
   command_ptr = command_buffer;
-    
+
+  debugger_command_lexer_reset();
+
   /* Parse the command */
   yyparse();
 

@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		576F061291E1888735FB9D38 /* FuseQLPreview.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 2395678A67FCB7B7DAFF9A83 /* FuseQLPreview.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		576F061291E1888735FB9D38 /* FuseQLPreview.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 2395678A67FCB7B7DAFF9A83 /* FuseQLPreview.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		70561DA4F03E4F3DA5B85553 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAA54F20E902456BACB24998 /* MetalKit.framework */; };
 		B2D0915DE32D43E89E59E3EF /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8287F6EDEBAC4FFA8708CC4E /* Metal.framework */; };
 		B6013812164692F5005FD3AE /* Fuse.iconset in Resources */ = {isa = PBXBuildFile; fileRef = B6013811164692F5005FD3AE /* Fuse.iconset */; };
@@ -298,7 +298,6 @@
 		D15E8F95259F5C0C0006FC79 /* gdbserver.c in Sources */ = {isa = PBXBuildFile; fileRef = D15E8F91259F5C0B0006FC79 /* gdbserver.c */; };
 		D1DF6DD826F8077F004A4AB7 /* debug.png in Resources */ = {isa = PBXBuildFile; fileRef = D1DF6DD726F8077F004A4AB7 /* debug.png */; };
 		D1ECC73E2924069800147252 /* ttx2000s.c in Sources */ = {isa = PBXBuildFile; fileRef = D1ECC73D2924069800147252 /* ttx2000s.c */; };
-		E653565B5C34AFB35F3702E8 /* FuseQLThumbnail.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 9651D9A4AA56B244FA98440C /* FuseQLThumbnail.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		FE2DAC5A2F328D96009AC45A /* xfs.c in Sources */ = {isa = PBXBuildFile; fileRef = FE2DAC592F328D96009AC45A /* xfs.c */; };
 		FE2DAC6C2F329E6D009AC45A /* xfs_fs.c in Sources */ = {isa = PBXBuildFile; fileRef = FE2DAC6A2F329E6D009AC45A /* xfs_fs.c */; };
 		FE2DAC6D2F329E6D009AC45A /* xfs_worker.c in Sources */ = {isa = PBXBuildFile; fileRef = FE2DAC6B2F329E6D009AC45A /* xfs_worker.c */; };
@@ -312,6 +311,7 @@
 		FE8E3FD82FD70FFB009FDB81 /* libssh2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE8E3FD72FD70FFB009FDB81 /* libssh2.framework */; };
 		FE8E3FD92FD70FFB009FDB81 /* libssh2.framework in Copy Files */ = {isa = PBXBuildFile; fileRef = FE8E3FD72FD70FFB009FDB81 /* libssh2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FE8E3FDF2FDAE9CA009FDB81 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = FE8E3FDE2FDAE9CA009FDB81 /* Sparkle */; };
+		FE8E3FE22FDB108A009FDB81 /* FuseQLThumbnail.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = FE8E3FE12FDB108A009FDB81 /* FuseQLThumbnail.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FE8E40202FD71100009FDB81 /* (null) in Copy Files */ = {isa = PBXBuildFile; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FE9443BC2F881C540059A578 /* engine_argv.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9443B72F881C540059A578 /* engine_argv.c */; };
 		FE9443BD2F881C540059A578 /* lexer.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9443B02F881C540059A578 /* lexer.c */; };
@@ -401,11 +401,11 @@
 /* Begin PBXCopyFilesBuildPhase section */
 		1AC70BA6F4B8EBA4740141B2 /* Embed App Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
+			buildActionMask = 12;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				E653565B5C34AFB35F3702E8 /* FuseQLThumbnail.appex in Embed App Extensions */,
+				FE8E3FE22FDB108A009FDB81 /* FuseQLThumbnail.appex in Embed App Extensions */,
 				576F061291E1888735FB9D38 /* FuseQLPreview.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
@@ -907,6 +907,7 @@
 		FE8E3FD52FD70BD9009FDB81 /* ssh.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ssh.c; sourceTree = "<group>"; };
 		FE8E3FD72FD70FFB009FDB81 /* libssh2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libssh2.framework; path = ../3rdparty/libssh2/build/Deployment/libssh2.framework; sourceTree = "<group>"; };
 		FE8E3FE02FDAECEF009FDB81 /* Info-FuseX.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-FuseX.plist"; sourceTree = "<group>"; };
+		FE8E3FE12FDB108A009FDB81 /* FuseQLThumbnail.appex */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.extensionkit-extension"; name = FuseQLThumbnail.appex; path = ../3rdparty/FuseGenerator/build/Deployment/FuseQLThumbnail.appex; sourceTree = "<group>"; };
 		FE9443AD2F881C540059A578 /* ast.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ast.h; sourceTree = "<group>"; };
 		FE9443AE2F881C540059A578 /* ast.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ast.c; sourceTree = "<group>"; };
 		FE9443AF2F881C540059A578 /* lexer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lexer.h; sourceTree = "<group>"; };
@@ -1041,6 +1042,7 @@
 		29B97314FDCFA39411CA2CEA /* Fuse */ = {
 			isa = PBXGroup;
 			children = (
+				FE8E3FE12FDB108A009FDB81 /* FuseQLThumbnail.appex */,
 				D1DA9AD7291EF817001911F7 /* FuseX.entitlements */,
 				080E96DDFE201D6D7F000001 /* Classes */,
 				29B97315FDCFA39411CA2CEA /* Other Sources */,
@@ -2340,7 +2342,7 @@
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = 48UV5KV3FB;
@@ -2384,7 +2386,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MARKETING_VERSION = "1.8.0-fusex-0.5";
 				OTHER_CFLAGS = "";
-				OTHER_CODE_SIGN_FLAGS = "--deep";
+				OTHER_CODE_SIGN_FLAGS = "";
 				OTHER_LDFLAGS = (
 					"-lbz2",
 					"-lz",
@@ -2413,7 +2415,7 @@
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = 48UV5KV3FB;
@@ -2456,7 +2458,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MARKETING_VERSION = "1.8.0-fusex-0.5";
 				OTHER_CFLAGS = "";
-				OTHER_CODE_SIGN_FLAGS = "--deep";
+				OTHER_CODE_SIGN_FLAGS = "";
 				OTHER_LDFLAGS = (
 					"-lbz2",
 					"-lz",
@@ -2484,7 +2486,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = 48UV5KV3FB;
@@ -2527,7 +2529,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MARKETING_VERSION = "1.8.0-fusex-0.5";
 				OTHER_CFLAGS = "";
-				OTHER_CODE_SIGN_FLAGS = "--deep";
+				OTHER_CODE_SIGN_FLAGS = "";
 				OTHER_LDFLAGS = (
 					"-lbz2",
 					"-lz",

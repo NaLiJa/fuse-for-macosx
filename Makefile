@@ -25,6 +25,9 @@ APPCAST_OUTPUT ?= appcast.xml
 APPCAST_URL_PREFIX ?= https://github.com/speccytools/fusex/releases/download/$(FUSEX_VERSION)/
 APPCAST_PUSH_DIR ?= ../speccytools.github.io
 SPARKLE_GENERATE_APPCAST ?= $(shell find "$(HOME)/Library/Developer/Xcode/DerivedData" -path "*/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast" -type f 2>/dev/null | head -1)
+FUSEGENERATOR_DEVELOPMENT_TEAM ?= $(if $(DEVELOPMENT_TEAM),$(DEVELOPMENT_TEAM),48UV5KV3FB)
+FUSEGENERATOR_CODE_SIGN_IDENTITY ?= $(if $(CODE_SIGN_IDENTITY),$(CODE_SIGN_IDENTITY),Developer ID Application)
+FUSEGENERATOR_CODE_SIGN_STYLE ?= $(if $(CODE_SIGN_STYLE),$(CODE_SIGN_STYLE),Manual)
 
 # Automatically set CODE_SIGN_STYLE=Manual if a code signing identity is specified
 ifneq ($(CODE_SIGN_IDENTITY),)
@@ -87,6 +90,9 @@ FuseGenerator:
 		SYMROOT=build \
 		BUILD_DIR=build \
 		CONFIGURATION_BUILD_DIR=build/Deployment \
+		DEVELOPMENT_TEAM="$(FUSEGENERATOR_DEVELOPMENT_TEAM)" \
+		CODE_SIGN_IDENTITY="$(FUSEGENERATOR_CODE_SIGN_IDENTITY)" \
+		CODE_SIGN_STYLE="$(FUSEGENERATOR_CODE_SIGN_STYLE)" \
 		$(XCODEBUILD_SIGN_ARGS)
 
 FuseImporter:

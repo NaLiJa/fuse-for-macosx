@@ -36,6 +36,7 @@
 @class RollbackController;
 @class SaveBinaryController;
 @class TapeBrowserController;
+@class SPUStandardUpdaterController;
 
 @interface FuseController : NSObject
 {
@@ -72,6 +73,7 @@
   RollbackController *rollbackController;
   SaveBinaryController *saveBinaryController;
   TapeBrowserController *tapeBrowserController;
+  SPUStandardUpdaterController *sparkleUpdaterController;
 }
 + (FuseController *)singleton;
 

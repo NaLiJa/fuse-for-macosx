@@ -1,4 +1,4 @@
-.PHONY: 3rdparty audiofile libgcrypt FuseGenerator FuseImporter mbedtls libssh2 clean-3rdparty list-teams fusex archive dist dmg release release-clean release-notarize release-export clean
+.PHONY: 3rdparty audiofile libgcrypt FuseGenerator FuseImporter mbedtls libssh2 clean-3rdparty list-teams fusex archive dist dmg appcast appcast-push release release-clean release-notarize release-export clean
 
 # Signing parameters (can be overridden from command line)
 # By default, use the signing settings already stored in the Xcode projects.
@@ -17,6 +17,14 @@ DIST_APP_PATH ?= dist/FuseX.app
 ARCHIVE_APP_PATH = $(ARCHIVE_PATH)/Products/Applications/FuseX.app
 RELEASE_ZIP_PATH ?= ./build/FuseX-notarize.zip
 NOTARYTOOL_PROFILE ?=
+FUSEX_VERSION ?= $(shell awk -F'= ' '/MARKETING_VERSION = / { gsub(/[";]/, "", $$2); print $$2; exit }' fusepb/FuseX.xcodeproj/project.pbxproj)
+DMG_NAME ?= FuseX-$(FUSEX_VERSION).dmg
+APPCAST_DIR ?= ./build/appcast
+APPCAST_ARCHIVE ?= ./$(DMG_NAME)
+APPCAST_OUTPUT ?= appcast.xml
+APPCAST_URL_PREFIX ?= https://github.com/speccytools/fusex/releases/download/$(FUSEX_VERSION)/
+APPCAST_PUSH_DIR ?= ../speccytools.github.io
+SPARKLE_GENERATE_APPCAST ?= $(shell find "$(HOME)/Library/Developer/Xcode/DerivedData" -path "*/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast" -type f 2>/dev/null | head -1)
 
 # Automatically set CODE_SIGN_STYLE=Manual if a code signing identity is specified
 ifneq ($(CODE_SIGN_IDENTITY),)
@@ -201,12 +209,12 @@ dist:
 	@echo "dist/FuseX.app found."
 
 dmg: dist
-	@echo "Creating FuseX.dmg..."
+	@echo "Creating $(DMG_NAME)..."
 	@if ! command -v create-dmg >/dev/null 2>&1; then \
 		echo "Error: create-dmg is not installed. Install it with: brew install create-dmg"; \
 		exit 1; \
 	fi
-	@rm -f FuseX.dmg
+	@rm -f "$(DMG_NAME)"
 	@if create-dmg \
 		--volname "FuseX" \
 		--window-pos 200 120 \
@@ -215,10 +223,10 @@ dmg: dist
 		--icon "FuseX.app" 175 120 \
 		--hide-extension "FuseX.app" \
 		--app-drop-link 425 120 \
-		FuseX.dmg \
+		"$(DMG_NAME)" \
 		dist/; then \
-		if [ -f "FuseX.dmg" ]; then \
-			echo "DMG created successfully: FuseX.dmg"; \
+		if [ -f "$(DMG_NAME)" ]; then \
+			echo "DMG created successfully: $(DMG_NAME)"; \
 		else \
 			echo "Error: DMG file was not created"; \
 			exit 1; \
@@ -226,6 +234,51 @@ dmg: dist
 	else \
 		echo "Error: create-dmg failed"; \
 		exit 1; \
+	fi
+
+appcast:
+	@echo "Generating Sparkle appcast..."
+	@if [ -z "$(SPARKLE_GENERATE_APPCAST)" ] || [ ! -x "$(SPARKLE_GENERATE_APPCAST)" ]; then \
+		echo "Error: Sparkle generate_appcast tool not found."; \
+		echo "Build/resolve Sparkle first, or pass SPARKLE_GENERATE_APPCAST=/path/to/generate_appcast"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(APPCAST_ARCHIVE)" ]; then \
+		echo "Error: update archive not found: $(APPCAST_ARCHIVE)"; \
+		echo "Create it first with: make dmg"; \
+		exit 1; \
+	fi
+	@url_prefix="$(APPCAST_URL_PREFIX)"; \
+	if [ -z "$$url_prefix" ]; then \
+		echo "Error: APPCAST_URL_PREFIX is required"; \
+		exit 1; \
+	fi; \
+	rm -rf "$(APPCAST_DIR)"; \
+	mkdir -p "$(APPCAST_DIR)"; \
+	cp -f "$(APPCAST_ARCHIVE)" "$(APPCAST_DIR)/"; \
+	"$(SPARKLE_GENERATE_APPCAST)" \
+		--download-url-prefix "$$url_prefix" \
+		-o "$(APPCAST_DIR)/$(APPCAST_OUTPUT)" \
+		"$(APPCAST_DIR)"; \
+	echo "Appcast generated: $(APPCAST_DIR)/$(APPCAST_OUTPUT)"
+
+appcast-push: appcast
+	@echo "Publishing Sparkle appcast..."
+	@if [ ! -d "$(APPCAST_PUSH_DIR)/.git" ]; then \
+		echo "Error: appcast push repository not found: $(APPCAST_PUSH_DIR)"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(APPCAST_DIR)/$(APPCAST_OUTPUT)" ]; then \
+		echo "Error: appcast not found: $(APPCAST_DIR)/$(APPCAST_OUTPUT)"; \
+		exit 1; \
+	fi
+	cp -f "$(APPCAST_DIR)/$(APPCAST_OUTPUT)" "$(APPCAST_PUSH_DIR)/$(APPCAST_OUTPUT)"
+	git -C "$(APPCAST_PUSH_DIR)" add "$(APPCAST_OUTPUT)"
+	@if git -C "$(APPCAST_PUSH_DIR)" diff --cached --quiet -- "$(APPCAST_OUTPUT)"; then \
+		echo "No appcast changes to commit."; \
+	else \
+		git -C "$(APPCAST_PUSH_DIR)" commit -m "Update FuseX $(FUSEX_VERSION)"; \
+		git -C "$(APPCAST_PUSH_DIR)" push; \
 	fi
 
 clean-3rdparty:
@@ -242,4 +295,4 @@ clean: clean-3rdparty
 	rm -rf fusepb/build
 	rm -rf build
 	rm -rf dist
-	rm -f FuseX.dmg
+	rm -f FuseX*.dmg

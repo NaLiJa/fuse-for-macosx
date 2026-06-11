@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>SUFeedURL</key>
+	<string>https://speccytools.org/appcast.xml</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleDocumentTypes</key>
@@ -597,6 +599,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>SUPublicEDKey</key>
+	<string>LsY9Kt6C1y+u5pnfdJoMNUCnECGH+EsH0ROXa5LSFrM=</string>
 	<key>CFBundleExecutable</key>
 	<string>FuseX</string>
 	<key>CFBundleGetInfoString</key>

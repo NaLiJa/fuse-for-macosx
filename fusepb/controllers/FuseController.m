@@ -39,6 +39,7 @@
 #import "SaveBinaryController.h"
 #import "TapeBrowserController.h"
 #import "AppSandboxFileAccess.h"
+#import <Sparkle/Sparkle.h>
 
 #import "DisplayOpenGLView.h"
 
@@ -228,6 +229,7 @@ static NSMutableArray *recentSnapFileNames = nil;
   } else {
     [super init];
     singleton = self;
+    sparkleUpdaterController = [[SPUStandardUpdaterController alloc] initWithStartingUpdater:YES updaterDelegate:nil userDriverDelegate:nil];
 
     NSArray *compressedFileTypes = @[@"gz", @"GZ", @"bz2", @"BZ2", @"zip",
                                      @"ZIP"];
@@ -1295,6 +1297,11 @@ save_as_exit:
   [[DisplayOpenGLView instance] settingsResetDefaults];
 }
 
+- (IBAction)checkForUpdates:(id)sender
+{
+  [sparkleUpdaterController checkForUpdates:sender];
+}
+
 - (void)dealloc
 {
   [[NSNotificationCenter defaultCenter] removeObserver:self];
@@ -1307,6 +1314,7 @@ save_as_exit:
   [preferencesController release];
   [rollbackController release];
   [savePanelAccessoryView release];
+  [sparkleUpdaterController release];
   [super dealloc];
 }
 

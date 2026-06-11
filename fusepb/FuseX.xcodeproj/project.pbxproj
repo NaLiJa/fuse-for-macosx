@@ -311,6 +311,7 @@
 		FE8E3FD62FD70BD9009FDB81 /* ssh.c in Sources */ = {isa = PBXBuildFile; fileRef = FE8E3FD52FD70BD9009FDB81 /* ssh.c */; };
 		FE8E3FD82FD70FFB009FDB81 /* libssh2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE8E3FD72FD70FFB009FDB81 /* libssh2.framework */; };
 		FE8E3FD92FD70FFB009FDB81 /* libssh2.framework in Copy Files */ = {isa = PBXBuildFile; fileRef = FE8E3FD72FD70FFB009FDB81 /* libssh2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		FE8E3FDF2FDAE9CA009FDB81 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = FE8E3FDE2FDAE9CA009FDB81 /* Sparkle */; };
 		FE8E40202FD71100009FDB81 /* (null) in Copy Files */ = {isa = PBXBuildFile; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FE9443BC2F881C540059A578 /* engine_argv.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9443B72F881C540059A578 /* engine_argv.c */; };
 		FE9443BD2F881C540059A578 /* lexer.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9443B02F881C540059A578 /* lexer.c */; };
@@ -481,7 +482,6 @@
 		B61700F3163EAF8D00142336 /* PokeMemory.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = PokeMemory.xib; sourceTree = "<group>"; };
 		B61700F5163EAFC600142336 /* PokeMemoryController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = PokeMemoryController.h; path = controllers/PokeMemoryController.h; sourceTree = "<group>"; };
 		B61700F6163EAFC600142336 /* PokeMemoryController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = PokeMemoryController.m; path = controllers/PokeMemoryController.m; sourceTree = "<group>"; };
-		B61F46A909121DF100C8096C /* Info-Fuse.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-Fuse.plist"; sourceTree = "<group>"; };
 		B61F46AA09121DF200C8096C /* FuseX.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FuseX.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B621A11E062E92FB00F63DBC /* if2.c */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.c; path = if2.c; sourceTree = "<group>"; };
 		B621A11F062E92FB00F63DBC /* if2.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = if2.h; sourceTree = "<group>"; };
@@ -906,6 +906,7 @@
 		FE8E3FD42FD70BD9009FDB81 /* ssh.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ssh.h; sourceTree = "<group>"; };
 		FE8E3FD52FD70BD9009FDB81 /* ssh.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ssh.c; sourceTree = "<group>"; };
 		FE8E3FD72FD70FFB009FDB81 /* libssh2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = libssh2.framework; path = ../3rdparty/libssh2/build/Deployment/libssh2.framework; sourceTree = "<group>"; };
+		FE8E3FE02FDAECEF009FDB81 /* Info-FuseX.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-FuseX.plist"; sourceTree = "<group>"; };
 		FE9443AD2F881C540059A578 /* ast.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ast.h; sourceTree = "<group>"; };
 		FE9443AE2F881C540059A578 /* ast.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ast.c; sourceTree = "<group>"; };
 		FE9443AF2F881C540059A578 /* lexer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lexer.h; sourceTree = "<group>"; };
@@ -967,6 +968,7 @@
 				B6A6F0EE0B3D5F9E000B88E9 /* CoreAudio.framework in Frameworks */,
 				B6A6F0F30B3D602F000B88E9 /* AudioUnit.framework in Frameworks */,
 				FE9913050000000000000005 /* AudioToolbox.framework in Frameworks */,
+				FE8E3FDF2FDAE9CA009FDB81 /* Sparkle in Frameworks */,
 				B2D0915DE32D43E89E59E3EF /* Metal.framework in Frameworks */,
 				70561DA4F03E4F3DA5B85553 /* MetalKit.framework in Frameworks */,
 				B653532B0B902CB20083F942 /* IOKit.framework in Frameworks */,
@@ -1046,8 +1048,8 @@
 				B6D670461DD6CB6B0014914E /* FuseHelp */,
 				29B97323FDCFA39411CA2CEA /* Frameworks */,
 				19C28FACFE9D520D11CA2CBB /* Products */,
-				B61F46A909121DF100C8096C /* Info-Fuse.plist */,
 				FEE30AD02FB3B25600E12D0B /* Recovered References */,
+				FE8E3FE02FDAECEF009FDB81 /* Info-FuseX.plist */,
 			);
 			indentWidth = 2;
 			name = Fuse;
@@ -1937,6 +1939,9 @@
 				German,
 			);
 			mainGroup = 29B97314FDCFA39411CA2CEA /* Fuse */;
+			packageReferences = (
+				FE8E3FDD2FDAE9CA009FDB81 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -2371,9 +2376,13 @@
 				);
 				INFOPLIST_FILE = "Info-FuseX.plist";
 				INSTALL_PATH = /Applications;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(LD_RUNPATH_SEARCH_PATHS_$(IS_MACCATALYST))",
+					"@executable_path/../Frameworks",
+				);
 				LIBRARY_SEARCH_PATHS = .;
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MARKETING_VERSION = "1.8.0-fusex-0.4";
+				MARKETING_VERSION = "1.8.0-fusex-0.5";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				OTHER_LDFLAGS = (
@@ -2439,9 +2448,13 @@
 				);
 				INFOPLIST_FILE = "Info-FuseX.plist";
 				INSTALL_PATH = /Applications;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(LD_RUNPATH_SEARCH_PATHS_$(IS_MACCATALYST))",
+					"@executable_path/../Frameworks",
+				);
 				LIBRARY_SEARCH_PATHS = .;
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MARKETING_VERSION = "1.8.0-fusex-0.4";
+				MARKETING_VERSION = "1.8.0-fusex-0.5";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				OTHER_LDFLAGS = (
@@ -2506,9 +2519,13 @@
 				);
 				INFOPLIST_FILE = "Info-FuseX.plist";
 				INSTALL_PATH = /Applications;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(LD_RUNPATH_SEARCH_PATHS_$(IS_MACCATALYST))",
+					"@executable_path/../Frameworks",
+				);
 				LIBRARY_SEARCH_PATHS = .;
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MARKETING_VERSION = "1.8.0-fusex-0.4";
+				MARKETING_VERSION = "1.8.0-fusex-0.5";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				OTHER_LDFLAGS = (
@@ -2805,6 +2822,25 @@
 			defaultConfigurationName = Default;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		FE8E3FDD2FDAE9CA009FDB81 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.3;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		FE8E3FDE2FDAE9CA009FDB81 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FE8E3FDD2FDAE9CA009FDB81 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 29B97313FDCFA39411CA2CEA /* Project object */;
 }

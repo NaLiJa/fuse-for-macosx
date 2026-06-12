@@ -269,6 +269,12 @@ debugger_check( debugger_breakpoint_type type, libspectrum_dword value )
         extern int gdbserver_activate_with_reason(int trap_reason);
         if (gdbserver_debugging_enabled) {
             gdbserver_activate_with_reason(DEBUG_TRAP_REASON_BREAKPOINT);
+
+            /* The trap above re-enters on this same thread and runs gdbserver
+               actions that can add, remove, or clear breakpoints, leaving ptr
+               and ptr_next dangling. Stop here; debugger_check() re-runs on the
+               next instruction from a fresh list head. */
+            break;
         }
       }
 

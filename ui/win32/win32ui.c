@@ -46,6 +46,7 @@
 #include "win32internals.h"
 #include "win32joystick.h"
 #include "debuglog.h"
+#include "winsparkle.h"
 
 /* Window handler */
 HWND fuse_hWnd;
@@ -142,6 +143,13 @@ fuse_window_proc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 
     case WM_CLOSE:
       menu_file_exit( 0 );
+      return 0;
+
+    case WM_USER_WINSPARKLE_QUIT:
+      /* WinSparkle update install: quit without confirmation so the
+         installer can replace fuse.exe (see installer.nsi CloseRunningFuse). */
+      fuse_exiting = 1;
+      DestroyWindow( fuse_hWnd );
       return 0;
 
     case WM_KEYDOWN:
@@ -394,6 +402,8 @@ ui_init( int *argc, char ***argv )
 
   ui_mouse_present = 1;
 
+  win32_winsparkle_init();
+
   return 0;
 }
 
@@ -425,6 +435,8 @@ int
 ui_end( void )
 {
   int error;
+
+  win32_winsparkle_cleanup();
 
   win32keyboard_end();
 

@@ -118,3 +118,31 @@ fi
 echo -e "\n${GREEN}=== Done ===${NC}"
 ls -la "$SCRIPT_DIR"/fusex-*-win32*.zip "$SCRIPT_DIR"/fusex-*-win32*.7z 2>/dev/null || true
 ls -la "$SCRIPT_DIR"/fusex-*-win32-setup.exe 2>/dev/null || true
+
+SETUP_EXE=""
+if [[ -f "$SCRIPT_DIR/config.h" ]]; then
+    PACKAGE_VERSION="$( sed -n 's/^#define PACKAGE_VERSION "\(.*\)"/\1/p' "$SCRIPT_DIR/config.h" | head -1 )"
+    if [[ -n "$PACKAGE_VERSION" ]]; then
+        SETUP_EXE="$SCRIPT_DIR/fusex-${PACKAGE_VERSION}-win32-setup.exe"
+        if [[ ! -f "$SETUP_EXE" ]]; then
+            SETUP_EXE=""
+        fi
+    fi
+fi
+if [[ -z "$SETUP_EXE" ]]; then
+    SETUP_EXE="$( ls "$SCRIPT_DIR"/fusex-*-win32-setup.exe 2>/dev/null | sort -V | tail -1 )"
+fi
+APPCAST_SRC="$SCRIPT_DIR/build/appcast-windows/appcast.xml"
+if [[ -n "$SETUP_EXE" ]]; then
+    echo -e "\n${GREEN}Generating WinSparkle appcast...${NC}"
+    bash "$SCRIPT_DIR/data/win32/generate-appcast.sh" "$SETUP_EXE"
+    APPCAST_PUSH_DIR="$SCRIPT_DIR/../speccytools.github.io/updates"
+    if [[ -d "$APPCAST_PUSH_DIR" && -f "$APPCAST_SRC" ]]; then
+        APPCAST_DEST="$APPCAST_PUSH_DIR/windows"
+        mkdir -p "$APPCAST_DEST"
+        cp -f "$APPCAST_SRC" "$APPCAST_DEST/appcast.xml"
+        echo -e "${GREEN}Copied appcast to ${APPCAST_DEST}/appcast.xml${NC}"
+    fi
+else
+    echo -e "\n${YELLOW}Skipping appcast generation (no setup.exe).${NC}"
+fi

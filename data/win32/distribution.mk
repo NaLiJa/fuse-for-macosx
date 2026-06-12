@@ -118,6 +118,10 @@ dist-win32-dir: 3rdparty-dist
 	    fi; \
 	  done; \
 	fi
+	@if test -f "$(top_srcdir)/data/win32/WinSparkle.dll"; then \
+	  cp "$(top_srcdir)/data/win32/WinSparkle.dll" "$(top_win32dir)/"; \
+	  echo "  copied WinSparkle.dll"; \
+	fi
 
 dist-win32-dir-debug:
 	$(MAKE) DESTDIR="$(top_win32dir)" install-win32

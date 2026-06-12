@@ -71,7 +71,9 @@ ui_win32_files = \
                  ui/win32/win32joystick.h \
                  ui/win32/win32keyboard.c \
                  ui/win32/win32mouse.c \
-                 ui/win32/win32ui.c
+                 ui/win32/win32ui.c \
+                 ui/win32/winsparkle.c \
+                 ui/win32/winsparkle.h
 
 ui_win32_rc_files = \
                  ui/win32/about.rc \

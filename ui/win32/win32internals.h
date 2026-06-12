@@ -127,6 +127,7 @@ void win32_verror( int is_error );
 void win32ui_process_messages( int process_queue_once );
 
 #define WM_USER_EXIT_PROCESS_MESSAGES WM_USER
+#define WM_USER_WINSPARKLE_QUIT       ( WM_USER + 1 )
 
 /*
  * Statusbar routines (statusbar.c)

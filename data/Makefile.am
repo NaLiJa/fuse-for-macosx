@@ -117,7 +117,14 @@ EXTRA_DIST += \
               data/shell-completion/diff_options.sh \
               data/win32/fuse.manifest.in \
               data/win32/installer.nsi.in \
-              data/win32/winfuse.ico
+              data/win32/winfuse.ico \
+              data/win32/WinSparkle.dll \
+              data/win32/libWinSparkle.a \
+              data/win32/WinSparkle.def \
+              data/win32/winsparkle.h \
+              data/win32/winsparkle-version.h \
+              data/win32/winsparkle-tool.exe \
+              data/win32/generate-appcast.sh
 
 CLEANFILES += \
               data/net.sourceforge.fuse_emulator.Fuse.desktop \

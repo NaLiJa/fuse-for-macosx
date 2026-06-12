@@ -190,8 +190,9 @@ if COMPAT_WIN32
 
 fuse_LDFLAGS = -mwindows
 fuse_SOURCES += windres.rc
-fuse_LDADD += -lcomctl32 -lwinmm windres.o
+fuse_LDADD += -lcomctl32 -lwinmm $(WINSPARKLE_LIBS) windres.o
 fuse_DEPENDENCIES += windres.o
+AM_CPPFLAGS += $(WINSPARKLE_CFLAGS)
 
 windres.o: windres.rc data/win32/winfuse.ico data/win32/fuse.manifest $(ui_win32_res)
 	$(AM_V_GEN)$(WINDRES) -I$(srcdir) -I. $(srcdir)/windres.rc $(LIBSPECTRUM_CFLAGS) $(CPPFLAGS) windres.o

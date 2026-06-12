@@ -175,6 +175,7 @@ MENU_CALLBACK( menu_machine_pokememory );
 MENU_CALLBACK( menu_machine_memorybrowser );
 
 MENU_CALLBACK( menu_help_keyboard );
+MENU_CALLBACK( menu_help_check_for_updates );
 MENU_CALLBACK( menu_help_about );
 
 /* Called from elsewhere (generally from one of the routines defined

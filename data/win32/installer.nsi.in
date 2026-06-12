@@ -27,6 +27,7 @@
 !define SETUP_FILE "${SETUP_FILENAME}.exe"
 !define HKLM_REG_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\FuseX"
 !define PROG_ID "Fuse.Files.1"
+!define WM_USER_WINSPARKLE_QUIT 0x0401
 
 ;Include Modern UI
 !include "MUI2.nsh"
@@ -317,7 +318,32 @@ Section "-Register Application"
   System::Call 'shell32.dll::SHChangeNotify(i, i, i, i) v (0x08000000, 0, 0, 0)'
 SectionEnd
 
+Function CloseRunningFuse
+  ; WinSparkle launches the installer while fuse.exe is still running.
+  ; Ask the app to quit, wait briefly, then force-kill if needed so files
+  ; are not locked during a silent (/S) upgrade.
+  Push $0
+  Push $1
+  FindWindow $0 "Fuse" ""
+  StrCmp $0 0 +2
+    SendMessage $0 ${WM_USER_WINSPARKLE_QUIT} 0 0
+  StrCpy $1 0
+wait_loop:
+  StrCmp $1 20 force_kill
+  Sleep 500
+  IntOp $1 $1 + 1
+  FindWindow $0 "Fuse" ""
+  StrCmp $0 0 wait_done wait_loop
+force_kill:
+  ClearErrors
+  ExecWait '"$SYSDIR\taskkill.exe" /F /IM fuse.exe' $0
+wait_done:
+  Pop $1
+  Pop $0
+FunctionEnd
+
 Function .onInit
+  Call CloseRunningFuse
   ; Select extensions not associated with other applications
   ${SelectUnregisteredExt} ".pzx" ${SEC_PZX}
   ${SelectUnregisteredExt} ".rzx" ${SEC_RZX}
@@ -326,6 +352,15 @@ Function .onInit
   ${SelectUnregisteredExt} ".tap" ${SEC_TAP}
   ${SelectUnregisteredExt} ".tzx" ${SEC_TZX}
   ${SelectUnregisteredExt} ".z80" ${SEC_Z80}
+FunctionEnd
+
+Function .onInstSuccess
+  ; WinSparkle uses silent (/S) install; MUI_FINISHPAGE_RUN is skipped then.
+  IfSilent run_fuse
+  Goto done
+run_fuse:
+  Exec '"$INSTDIR\fuse.exe"'
+done:
 FunctionEnd
 
 ;--------------------------------

@@ -20,7 +20,7 @@ dnl E-mail: philip-fuse@shadowmagic.org.uk
 
 dnl Package version (user-visible: tarballs, fuse --version, NSIS text).
 dnl Keep README, man/fuse.1 (.TH third field), metainfo.xml, and fusepb MARKETING_VERSION in sync.
-m4_define([fuse_version], [1.8.0-fusex-0.4])
+m4_define([fuse_version], [1.8.0-fusex-0.5])
 
 dnl Win32 FILEVERSION / NSIS VIProductVersion require four integers only; map fusex-0.1 -> fourth field 1.
 m4_define([fuse_major_version], [1])
@@ -1001,6 +1001,23 @@ AM_CONDITIONAL(COMPAT_MORPHOS, test "$COMPAT_OSNAME" = 'morphos')
 AM_CONDITIONAL(COMPAT_UNIX, test "$COMPAT_OSNAME" = 'unix')
 AM_CONDITIONAL(COMPAT_WII, test "$COMPAT_OSNAME" = 'wii')
 AM_CONDITIONAL(COMPAT_WIN32, test "$COMPAT_OSNAME" = 'win32')
+
+WINSPARKLE_CFLAGS=
+WINSPARKLE_LIBS=
+if test "$COMPAT_OSNAME" = 'win32'; then
+  winsparkle_libdir="$srcdir/data/win32"
+  AC_MSG_CHECKING([for WinSparkle (Windows auto-update)])
+  if test -f "$winsparkle_libdir/WinSparkle.dll" && test -f "$winsparkle_libdir/libWinSparkle.a" && test -f "$winsparkle_libdir/winsparkle.h"; then
+    WINSPARKLE_CFLAGS="-I$winsparkle_libdir"
+    WINSPARKLE_LIBS="-L$winsparkle_libdir -lWinSparkle"
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_RESULT([no])
+    AC_MSG_ERROR([WinSparkle not found in data/win32 (WinSparkle.dll, libWinSparkle.a, winsparkle.h). Download from https://github.com/vslavik/winsparkle/releases])
+  fi
+fi
+AC_SUBST(WINSPARKLE_CFLAGS)
+AC_SUBST(WINSPARKLE_LIBS)
 
 dnl These tell the Makefile to use SDL 1 and SDL 2 flags during the build
 AM_CONDITIONAL(USE_SDL1, test "$use_sdl1" = "yes")

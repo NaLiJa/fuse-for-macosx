@@ -92,6 +92,7 @@ covox, boolean, 0
 phantom_typist_mode, string, "Auto"
 gdbserver_enable, boolean, 0
 gdbserver_port, numeric, 1337
+gdbserver_wait, boolean, 0
 
 sound_device, string, NULL,, 'd'
 sound, boolean, 1

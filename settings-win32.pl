@@ -30,6 +30,8 @@ sub hashline ($) { '#line ', $_[0] + 1, '"', __FILE__, "\"\n" }
 
 my %options;
 
+my %command_line_only = ( 'gdbserver_wait' => 1 );
+
 while(<>) {
 
     next if /^\s*$/;
@@ -217,6 +219,8 @@ foreach my $name ( sort keys %options ) {
 
     my $type = $options{$name}->{type};
 
+    next if $command_line_only{$name};
+
     if( $type eq 'boolean' or $type eq 'numeric' ) {
 
 	print << "CODE";
@@ -290,6 +294,8 @@ CODE
 foreach my $name ( sort keys %options ) {
 
     my $type = $options{$name}->{type};
+
+    next if $command_line_only{$name};
 
     if( $type eq 'boolean' ) {
 
@@ -395,6 +401,8 @@ settings_var( settings_info *settings, unsigned char *name, unsigned char *last,
 CODE
 my %type = ('null' => 0, 'nsarray' => 0, 'boolean' => 1, 'numeric' => 1, 'string' => 2 );
 foreach my $name ( sort keys %options ) {
+    next if $command_line_only{$name};
+
     my $len = length $options{$name}->{configfile};
 
     print << "CODE";
@@ -519,6 +527,8 @@ foreach my $name ( sort keys %options ) {
 
     my $type = $options{$name}->{type};
     my $len = length "$options{$name}->{configfile}";
+
+    next if $command_line_only{$name};
 
     if( $type eq 'boolean' ) {
 

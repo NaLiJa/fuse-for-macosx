@@ -37,3 +37,9 @@ options.m: ../perl/cpp-perl.pl config.h ../ui/cocoa/options.pl ../ui/options.dat
 
 clean:
 	rm options.h options_cocoa.h options.m settings.h settings.m ../z80/opcodes_base.c ../z80/z80_cb.c ../z80/z80_ddfd.c ../z80/z80_ddfdcb.c ../z80/z80_ed.c settings_cocoa.h
+
+# Generate a file-format icon, e.g. `make icon FORMAT=udi`. LABEL defaults to
+# FORMAT uppercased. Writes resources/$(FORMAT).icns from resources/blank.icns.
+icon:
+	@test -n "$(FORMAT)" || { echo "usage: make icon FORMAT=<ext> [LABEL=<text>]"; exit 1; }
+	cd .. && swift fusepb/format-icon.swift "$(FORMAT)" "$(LABEL)"

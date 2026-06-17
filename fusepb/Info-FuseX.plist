@@ -68,7 +68,7 @@
 				<string>FDI</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>fdi</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Disk Image</string>
 			<key>CFBundleTypeRole</key>
@@ -246,7 +246,7 @@
 				<string>WAV</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>wav</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Tape Image</string>
 			<key>CFBundleTypeRole</key>
@@ -314,7 +314,7 @@
 				<string>PZX</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>pzx</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Tape Image</string>
 			<key>CFBundleTypeRole</key>
@@ -352,7 +352,7 @@
 				<string>SPC</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>spc</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Tape Image</string>
 			<key>CFBundleTypeRole</key>
@@ -369,7 +369,7 @@
 				<string>STA</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>sta</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Tape Image</string>
 			<key>CFBundleTypeRole</key>
@@ -386,7 +386,7 @@
 				<string>LTP</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>ltp</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Tape Image</string>
 			<key>CFBundleTypeRole</key>
@@ -454,7 +454,7 @@
 				<string>MGTSNP</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>mgtsnp</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Snapshot</string>
 			<key>CFBundleTypeRole</key>
@@ -471,7 +471,7 @@
 				<string>IMG</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>img</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Disk Image</string>
 			<key>CFBundleTypeRole</key>
@@ -488,7 +488,7 @@
 				<string>MGT</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>mgt</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Disk Image</string>
 			<key>CFBundleTypeRole</key>
@@ -505,7 +505,7 @@
 				<string>OPD</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>opd</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Disk Image</string>
 			<key>CFBundleTypeRole</key>
@@ -522,7 +522,7 @@
 				<string>OPU</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>opu</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Disk Image</string>
 			<key>CFBundleTypeRole</key>
@@ -539,7 +539,7 @@
 				<string>POK</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>pok</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Poke File</string>
 			<key>CFBundleTypeRole</key>
@@ -556,7 +556,7 @@
 				<string>D40</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>d40</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Disk Image</string>
 			<key>CFBundleTypeRole</key>
@@ -573,7 +573,7 @@
 				<string>D80</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>d80</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Disk Image</string>
 			<key>CFBundleTypeRole</key>
@@ -590,7 +590,7 @@
 				<string>MLT</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
-			<string>blank</string>
+			<string>mlt</string>
 			<key>CFBundleTypeName</key>
 			<string>ZX Spectrum Screen Image</string>
 			<key>CFBundleTypeRole</key>
@@ -750,7 +750,7 @@
 			<key>UTTypeDescription</key>
 			<string>ZX Spectrum FDI Disk Image</string>
 			<key>UTTypeIconFile</key>
-			<string>blank</string>
+			<string>fdi</string>
 			<key>UTTypeIdentifier</key>
 			<string>net.sourceforge.projects.fuse-emulator.fdi</string>
 			<key>UTTypeTagSpecification</key>
@@ -769,7 +769,7 @@
 			<key>UTTypeDescription</key>
 			<string>ZX Spectrum DISCiPLE/+D Disk Image</string>
 			<key>UTTypeIconFile</key>
-			<string>blank</string>
+			<string>mgt</string>
 			<key>UTTypeIdentifier</key>
 			<string>net.sourceforge.projects.fuse-emulator.mgt</string>
 			<key>UTTypeReferenceURL</key>
@@ -1077,7 +1077,7 @@
 			<key>UTTypeDescription</key>
 			<string>ZX Spectrum DISCiPLE/+D Disk Image</string>
 			<key>UTTypeIconFile</key>
-			<string>blank</string>
+			<string>img</string>
 			<key>UTTypeIdentifier</key>
 			<string>net.sourceforge.projects.fuse-emulator.img</string>
 			<key>UTTypeReferenceURL</key>
@@ -1117,7 +1117,7 @@
 			<key>UTTypeDescription</key>
 			<string>ZX Spectrum Opus Discovery Disk Image</string>
 			<key>UTTypeIconFile</key>
-			<string>blank</string>
+			<string>opd</string>
 			<key>UTTypeIdentifier</key>
 			<string>net.sourceforge.projects.fuse-emulator.opd</string>
 			<key>UTTypeReferenceURL</key>
@@ -1138,7 +1138,7 @@
 			<key>UTTypeDescription</key>
 			<string>ZX Spectrum Opus Discovery Disk Image</string>
 			<key>UTTypeIconFile</key>
-			<string>blank</string>
+			<string>opu</string>
 			<key>UTTypeIdentifier</key>
 			<string>net.sourceforge.projects.fuse-emulator.opu</string>
 			<key>UTTypeReferenceURL</key>
@@ -1159,7 +1159,7 @@
 			<key>UTTypeDescription</key>
 			<string>ZX Spectrum Screen Image</string>
 			<key>UTTypeIconFile</key>
-			<string>blank</string>
+			<string>mlt</string>
 			<key>UTTypeIdentifier</key>
 			<string>net.sourceforge.projects.fuse-emulator.mlt</string>
 			<key>UTTypeTagSpecification</key>

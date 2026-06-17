@@ -27,6 +27,7 @@
 
 #include "compat.h"
 #include "debugger/debugger.h"
+#include "debugger/gdbserver.h"
 #include "display.h"
 #include "event.h"
 #include "keyboard.h"
@@ -314,6 +315,7 @@ spectrum_unattached_port_none( void )
 void
 spectrum_do_frame(void)
 {
+  gdbserver_note_emulating();
   while( !event_frame_end ) {
     z80_do_opcodes();
     event_do_events();
@@ -325,6 +327,7 @@ spectrum_do_frame(void)
 void
 spectrum_do_timer( libspectrum_dword target_tstates )
 {
+  gdbserver_note_emulating();
   event_timer=0;
   event_add( target_tstates + tstates, timer_event );
   while( !event_timer ) {

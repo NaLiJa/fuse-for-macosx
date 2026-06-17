@@ -14,6 +14,7 @@ int gdbserver_start( int port );
 void gdbserver_stop();
 int gdbserver_activate();
 int gdbserver_activate_with_reason(int trap_reason);
+void gdbserver_note_emulating(void);
 void gdbserver_refresh_status();
 void gdbserver_schedule_reset(void);
 void gdbserver_schedule_autoboot(void);

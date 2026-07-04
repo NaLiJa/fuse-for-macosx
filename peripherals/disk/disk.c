@@ -830,7 +830,7 @@ int disk_preformat( disk_t *d )
 /* open a disk image */
 #define GEOM_CHECK \
     if( d->sides < 1 || d->sides > 2 || \
-       d->cylinders < 1 || d->cylinders > 85 ) return d->status = DISK_GEOM
+       d->cylinders < 1 || d->cylinders > 86 ) return d->status = DISK_GEOM
 
 #ifdef LIBSPECTRUM_SUPPORTS_ZLIB_COMPRESSION
 static int
@@ -1052,7 +1052,7 @@ open_udi( buffer_t *buffer, disk_t *d )
   d->bpt = 0;
 
   /* scan file for the longest track */
-  for( i = 0; buffer->index < eof; i++ ) {
+  for( i = 0; i < d->sides * d->cylinders && buffer->index < eof; i++ ) {
     if( buffavail( buffer ) < 3 )
       return d->status = DISK_OPEN;
     ttyp = buff[0];
@@ -1095,7 +1095,7 @@ open_udi( buffer_t *buffer, disk_t *d )
   d->bpt = bpt;		/* restore the maximal byte per track */
   buffer->index = 16;
 
-  for( i = 0; buffer->index < eof; i++ ) {
+  for( i = 0; i < d->sides * d->cylinders && buffer->index < eof; i++ ) {
     DISK_SET_TRACK_IDX( d, i );
     ttyp = buff[0];
     bpt = buff[1] + 256 * buff[2];		/* current track len... */

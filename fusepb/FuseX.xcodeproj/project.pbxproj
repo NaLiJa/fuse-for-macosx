@@ -18,6 +18,7 @@
 		70561DA4F03E4F3DA5B85553 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EAA54F20E902456BACB24998 /* MetalKit.framework */; };
 		70C4AAF3348BCAAF406ABD72 /* fdi.icns in Resources */ = {isa = PBXBuildFile; fileRef = 0434807795A36A2ADBE801FD /* fdi.icns */; };
 		77D4DC318FB2F3901F6F1F0C /* ltp.icns in Resources */ = {isa = PBXBuildFile; fileRef = 73634C6A823C65469329182E /* ltp.icns */; };
+		7C22B962B64B1942413DF26A /* udi.icns in Resources */ = {isa = PBXBuildFile; fileRef = 384001994B177FFEB8AE6C99 /* udi.icns */; };
 		7F7BB782D4AEBC99DC6AF1C8 /* d80.icns in Resources */ = {isa = PBXBuildFile; fileRef = 3B061F2A9CBA3011FBE7A640 /* d80.icns */; };
 		83B45F940FB7799F67BC0C7E /* wav.icns in Resources */ = {isa = PBXBuildFile; fileRef = A0EDEF7D7639C051DFFA7415 /* wav.icns */; };
 		A077D12A865257945F8ED735 /* d40.icns in Resources */ = {isa = PBXBuildFile; fileRef = 0DE6490BEE632A2E645C4086 /* d40.icns */; };
@@ -475,6 +476,7 @@
 		29B97324FDCFA39411CA2CEA /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = /System/Library/Frameworks/AppKit.framework; sourceTree = "<absolute>"; };
 		29B97325FDCFA39411CA2CEA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = /System/Library/Frameworks/Foundation.framework; sourceTree = "<absolute>"; };
 		2BDC12F02C4E48F98494D156 /* DisplayShaders.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = DisplayShaders.metal; sourceTree = "<group>"; };
+		384001994B177FFEB8AE6C99 /* udi.icns */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.icns; name = udi.icns; path = resources/udi.icns; sourceTree = SOURCE_ROOT; };
 		3B061F2A9CBA3011FBE7A640 /* d80.icns */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.icns; name = d80.icns; path = resources/d80.icns; sourceTree = SOURCE_ROOT; };
 		6B9DA7F77DF8F6DD5023E33A /* spc.icns */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.icns; name = spc.icns; path = resources/spc.icns; sourceTree = SOURCE_ROOT; };
 		6EE199DF1B56E0F5DC20ACDD /* opd.icns */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.icns; name = opd.icns; path = resources/opd.icns; sourceTree = SOURCE_ROOT; };
@@ -1268,6 +1270,7 @@
 				0DE6490BEE632A2E645C4086 /* d40.icns */,
 				3B061F2A9CBA3011FBE7A640 /* d80.icns */,
 				06FA366DDA50516B0E710919 /* mlt.icns */,
+				384001994B177FFEB8AE6C99 /* udi.icns */,
 			);
 			path = resources;
 			sourceTree = "<group>";
@@ -2096,6 +2099,7 @@
 				A077D12A865257945F8ED735 /* d40.icns in Resources */,
 				7F7BB782D4AEBC99DC6AF1C8 /* d80.icns in Resources */,
 				03A9A1325AFA09F88C578556 /* mlt.icns in Resources */,
+				7C22B962B64B1942413DF26A /* udi.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

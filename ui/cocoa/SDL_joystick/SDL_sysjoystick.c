@@ -545,10 +545,15 @@ HIDBuildDevice(io_object_t hidDevice)
                                               kCFAllocatorDefault,
                                               kNilOptions);
         if ((result == KERN_SUCCESS) && hidProperties) {
-            /* create device interface */
-            result = HIDCreateOpenDeviceInterface(hidDevice, pDevice);
-            if (kIOReturnSuccess == result) {
-                HIDGetDeviceInfo(hidDevice, hidProperties, pDevice);    /* hidDevice used to find parents in registry tree */
+            HIDGetDeviceInfo(hidDevice, hidProperties, pDevice);    /* hidDevice used to find parents in registry tree */
+
+            /* Open only joysticks; the system owns keyboards and mice. */
+            if (pDevice->usagePage == kHIDPage_GenericDesktop &&
+                (pDevice->usage == kHIDUsage_GD_Joystick ||
+                 pDevice->usage == kHIDUsage_GD_GamePad ||
+                 pDevice->usage == kHIDUsage_GD_MultiAxisController) &&
+                kIOReturnSuccess ==
+                    HIDCreateOpenDeviceInterface(hidDevice, pDevice)) {
                 HIDGetCollectionElements(hidProperties, pDevice);
             } else {
                 DisposePtr((Ptr) pDevice);
@@ -688,18 +693,6 @@ SDL_SYS_JoystickInit(void)
 /*		if (KERN_SUCCESS != result)
 			HIDReportErrorNum ("IOObjectRelease error with ioHIDDeviceObject.", result);
 */
-
-        /* Filter device list to non-keyboard/mouse stuff */
-        if ((device->usagePage != kHIDPage_GenericDesktop) ||
-            ((device->usage != kHIDUsage_GD_Joystick &&
-              device->usage != kHIDUsage_GD_GamePad &&
-              device->usage != kHIDUsage_GD_MultiAxisController))) {
-
-            /* release memory for the device */
-            HIDDisposeDevice(&device);
-            DisposePtr((Ptr) device);
-            continue;
-        }
 
         /* Add device to the end of the list */
         if (lastDevice)

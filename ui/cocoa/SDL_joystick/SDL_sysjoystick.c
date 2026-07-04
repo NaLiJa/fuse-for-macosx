@@ -236,15 +236,11 @@ HIDCloseReleaseInterface(recDevice * pDevice)
         /* close the interface */
         result = (*(pDevice->interface))->close(pDevice->interface);
         if (kIOReturnNotOpen == result) {
-            /* do nothing as device was not opened, thus can't be closed */
+            result = kIOReturnSuccess;  /* never opened: nothing to close */
         } else if (kIOReturnSuccess != result)
             HIDReportErrorNum("Failed to close IOHIDDeviceInterface.",
                               result);
-        /* release the interface */
-        result = (*(pDevice->interface))->Release(pDevice->interface);
-        if (kIOReturnSuccess != result)
-            HIDReportErrorNum("Failed to release IOHIDDeviceInterface.",
-                              result);
+        (*(pDevice->interface))->Release(pDevice->interface);
         pDevice->interface = NULL;
     }
     return result;

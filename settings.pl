@@ -35,6 +35,9 @@ my %fileAssoc = ( 'snapshot' => 1, 'tape_file' => 1, 'record_file' => 1,
                   'zxatasp_master_file' => 1, 'zxatasp_slave_file' => 1,
                   'zxcf_pri_file' => 1,
                   'plus3disk_file' => 1, 'betadisk_file' => 1 );
+
+my %command_line_only = ( 'gdbserver_wait' => 1 );
+
 while(<>) {
 
     next if /^\s*$/;
@@ -158,6 +161,8 @@ foreach my $name ( sort keys %options ) {
 
     my $type = $options{$name}->{type};
 
+    next if $command_line_only{$name};
+
     if( $type eq 'boolean' ) {
 	print << "CODE";
   value = settings->$name ? YES : NO;
@@ -212,6 +217,8 @@ foreach my $name ( sort keys %options ) {
 
     my $type = $options{$name}->{type};
     my $funcn = $options{$name}->{funcn};
+
+    next if $command_line_only{$name};
 
     if( $type eq 'boolean' ) {
 
@@ -291,6 +298,8 @@ CODE
 foreach my $name ( sort keys %options ) {
 
     my $type = $options{$name}->{type};
+
+    next if $command_line_only{$name};
 
     if( $type eq 'boolean' ) {
 	print << "CODE";

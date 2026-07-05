@@ -1325,7 +1325,6 @@ save_as_exit:
 
 - (void)ui_menu_activate_debugger:(NSNumber*)active
 {
-  printf("tag: %d\n", [debugger tag]);
   debuggerEnabled = [active boolValue];
 }
 

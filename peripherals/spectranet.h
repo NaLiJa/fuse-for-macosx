@@ -107,5 +107,6 @@ extern libspectrum_word spectranet_programmable_trap;
 
 /* Get pointer to Spectranet ROM configuration page (page 0x1F) */
 libspectrum_byte* spectranet_get_config_page(void);
+int spectranet_dump_ram( const char *filename );
 
 #endif /* #ifndef FUSE_SPECTRANET_H */

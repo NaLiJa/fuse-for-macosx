@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-typedef uint8_t (*remote_command_handler_t)(void);
+typedef uint8_t (*remote_command_handler_t)(const char *args);
 
 struct remote_command_entry_t {
     const char *name;

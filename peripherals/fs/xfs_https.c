@@ -21,17 +21,21 @@
 
 struct xfs_handle_https_file_t
 {
-    void* data;                          // Pointer to file data buffer
-    size_t size;                         // Size of file data buffer
-    size_t pos;                          // Current read position in buffer
+    uint8_t *blob;       /* PSRAM download blob from download_blob_alloc */
+    size_t   blob_size;  /* Bytes received (download complete size) */
+    size_t   read_pos;   /* Current read cursor */
+    /** Set after successful open; cleared after blob released in https_close. */
+    uint8_t live;
 };
 
 struct xfs_handle_https_dir_t
 {
     // parsed dir entries are stored there
     struct xfs_handle_https_dir_entry_t** dir_entries;
-    uint8_t dir_entries_count;           // Number of entries allocated
-    uint8_t dir_entries_pos;             // Current position for readdir
+    uint8_t dir_entries_count;              // Number of entries allocated
+    uint8_t dir_entries_pos;                // Current position for readdir
+    /** Set after successful opendir; cleared after entries freed in https_closedir. */
+    uint8_t live;
 };
 
 static struct xfs_handle_https_file_t* get_https_file_handle(const struct xfs_handle_t* handle)
@@ -50,6 +54,9 @@ static struct xfs_handle_https_dir_t* get_https_dir_handle(const struct xfs_hand
 #define HTTPS_DIR_CACHE_SIZE 4
 // Maximum path length for cache
 #define HTTPS_CACHE_PATH_MAX 256
+
+static const char HTTPS_SCHEME[] = "https";
+static const char HTTP_SCHEME[] = "http";
 
 struct https_dir_cache_entry_t
 {
@@ -140,8 +147,9 @@ static void https_normalize_dir_path(const char* path, char normalized[HTTPS_CAC
     }
 
     strncpy(normalized, path, HTTPS_CACHE_PATH_MAX);
+    normalized[HTTPS_CACHE_PATH_MAX - 1] = '\0';
 
-    const uint16_t path_len = strlen(path);
+    const size_t path_len = strlen(normalized);
     if (path_len > 1 && normalized[path_len - 1] == '/')
     {
         normalized[path_len - 1] = '\0';
@@ -227,16 +235,15 @@ static void https_cache_put_entries(const struct xfs_engine_mount_t* engine, con
     struct https_engine_mount_data_t* mount_data = get_mount_data(engine);
 
     int cache_idx = -1;
+    int i;
 
+    for (i = 0; i < HTTPS_DIR_CACHE_SIZE; i++)
     {
-      for (int i = 0; i < HTTPS_DIR_CACHE_SIZE; i++)
-      {
-          if (!mount_data->https_dir_cache[i].in_use)
-          {
-              cache_idx = i;
-              break;
-          }
-      }
+        if (!mount_data->https_dir_cache[i].in_use)
+        {
+            cache_idx = i;
+            break;
+        }
     }
 
     // If cache is full, use next_cache slot and cycle to next
@@ -264,8 +271,8 @@ static void https_cache_put_entries(const struct xfs_engine_mount_t* engine, con
     memcpy(mount_data->https_dir_cache[cache_idx].path, dir_path, path_len);
     mount_data->https_dir_cache[cache_idx].path[path_len] = '\0';
 
-    // Allocate array of pointers
-    mount_data->https_dir_cache[cache_idx].dir_entries = (struct xfs_handle_https_dir_entry_t**)libspectrum_malloc(
+    // Allocate array for cached entries
+    mount_data->https_dir_cache[cache_idx].dir_entries = (struct xfs_handle_https_dir_entry_t**)malloc(
         count * sizeof(struct xfs_handle_https_dir_entry_t*));
 
     if (!mount_data->https_dir_cache[cache_idx].dir_entries)
@@ -276,7 +283,7 @@ static void https_cache_put_entries(const struct xfs_engine_mount_t* engine, con
 
     // Copy all entries
     int dir_entries_count = 0;
-    for (int i = 0; i < count; i++)
+    for (i = 0; i < count; i++)
     {
         if (entries[i])
         {
@@ -333,7 +340,8 @@ static void https_cache_store_entries(const struct xfs_engine_mount_t* engine,
     }
     
     // Copy path
-    strncpy(mount_data->https_dir_cache[cache_idx].path, dir_path, HTTPS_CACHE_PATH_MAX);
+    strncpy(mount_data->https_dir_cache[cache_idx].path, dir_path, HTTPS_CACHE_PATH_MAX - 1);
+    mount_data->https_dir_cache[cache_idx].path[HTTPS_CACHE_PATH_MAX - 1] = '\0';
     
     // Store entries pointer directly (no copying)
     mount_data->https_dir_cache[cache_idx].dir_entries = entries;
@@ -404,14 +412,124 @@ static int write_buffer_callback(void *param, unsigned char *buf, size_t length,
 }
 
 static int parse_index_line_to_entry(const char* line, struct xfs_handle_https_dir_entry_t* entry);
+
+// Parse index.txt buffer and populate entries array
+// Returns number of entries parsed, or -1 on error
+// If entries is NULL and max_entries is 0, only counts entries (doesn't allocate)
+// If search_name is non-NULL, stops at first matching entry and returns 1 if found, -1 if not found
+// If found_entry is provided and search_name is set, fills found_entry with the matching entry
 static int https_parse_index_txt(const char* buffer, const size_t buffer_len,
     struct xfs_handle_https_dir_entry_t** entries,
-    const uint8_t max_entries);
+    const uint8_t max_entries)
+{
+    size_t pos = 0;
+    uint8_t entry_idx = 0;
+    int found = 0;
+
+    while (pos < buffer_len && (max_entries == 0 || entry_idx < max_entries))
+    {
+        // Skip whitespace and empty lines
+        while (pos < buffer_len && (buffer[pos] == ' ' || buffer[pos] == '\t' || buffer[pos] == '\n' || buffer[pos] == '\r'))
+        {
+            pos++;
+        }
+
+        if (pos >= buffer_len)
+            break;
+
+        // Find end of line
+        size_t line_start = pos;
+        size_t line_end = pos;
+        while (line_end < buffer_len && buffer[line_end] != '\n' && buffer[line_end] != '\r')
+        {
+            line_end++;
+        }
+
+        if (line_end > line_start)
+        {
+            // Extract line
+            size_t line_len = line_end - line_start;
+            char line[256];
+            if (line_len >= sizeof(line))
+            {
+                line_len = sizeof(line) - 1;
+            }
+            memcpy(line, buffer + line_start, line_len);
+            line[line_len] = '\0';
+
+            // Determine which entry buffer to use
+            struct xfs_handle_https_dir_entry_t* entry = NULL;
+            struct xfs_handle_https_dir_entry_t temp_entry;
+            int should_allocate = 0;
+
+            if (max_entries > 0 && entries)
+            {
+                // Parsing all entries, allocate new entry
+                should_allocate = 1;
+            }
+            else
+            {
+                // Just counting, use temp buffer
+                entry = &temp_entry;
+            }
+
+            if (should_allocate)
+            {
+                entry = (struct xfs_handle_https_dir_entry_t*)calloc(1,
+                    sizeof(struct xfs_handle_https_dir_entry_t));
+            }
+
+            if (entry == NULL)
+            {
+                return -1; // Out of memory?
+            }
+
+            // Parse entry
+            if (parse_index_line_to_entry(line, entry) == 0)
+            {
+                // If searching for specific name, check if it matches
+                if (max_entries > 0 && entries)
+                {
+                    // Store in entries array
+                    entries[entry_idx] = entry;
+                    entry_idx++;
+                }
+                else
+                {
+                    // Just counting or searching (but not found yet)
+                    entry_idx++;
+                    if (should_allocate)
+                    {
+                        // We allocated but didn't store, free it
+                        free(entry);
+                    }
+                }
+            }
+            else
+            {
+                // Invalid entry
+                if (should_allocate)
+                {
+                    free(entry);
+                }
+            }
+        }
+
+        // Skip line ending
+        pos = line_end;
+        if (pos < buffer_len && buffer[pos] == '\r')
+            pos++;
+        if (pos < buffer_len && buffer[pos] == '\n')
+            pos++;
+    }
+
+    return entry_idx;
+}
 
 // Fetch and parse index.txt for a directory
 // Fetches all entries, allocates and returns entries array in out_entries, returns entry count
 static int16_t https_fetch_and_parse_index(const struct xfs_engine_mount_t* engine, const char* dir_path,
-    struct xfs_handle_https_dir_entry_t*** out_entries, uint8_t* out_entry_count)
+                                            struct xfs_handle_https_dir_entry_t*** out_entries, uint8_t* out_entry_count)
 {
     struct https_engine_mount_data_t* mount_data = get_mount_data(engine);
     if (!mount_data || mount_data->url[0] == '\0')
@@ -537,9 +655,7 @@ static int16_t https_mount(const struct xfs_engine_t* engine, const char* hostna
 {
     XFS_DEBUG("https: mount hostname='%s' path='%s'\n", hostname ? hostname : "(null)", path ? path : "(null)");
     
-    (void)engine;
-    
-    if (!hostname || !path)
+    if (!hostname || !engine || !path)
     {
         XFS_DEBUG("https: mount failed: invalid parameters\n");
         return XFS_ERR_INVAL;
@@ -577,11 +693,13 @@ static int16_t https_mount(const struct xfs_engine_t* engine, const char* hostna
     const size_t normalized_len = strlen(normalized_path);
     uint8_t path_ends_with_slash = normalized_path[normalized_len - 1] == '/';
     uint8_t path_starts_with_slash = normalized_path[0] == '/';
+    const char* const scheme = engine->user ? (const char*)engine->user : HTTPS_SCHEME;
+    const size_t scheme_len = strlen(scheme);
 
-    // Calculate maximum URL length: "https://" (8) + hostname (max 64) + "/" (1) + path (max 160) + "/" (1) + null (1) = 235
+    // Calculate maximum URL length: scheme + "://" + hostname + "/" + path + optional "/" + null
     // mount_data->url is HTTPS_MAX_HOSTNAME (256) bytes, so we have enough space
     const size_t hostname_len = strlen(hostname);
-    const size_t max_url_len = 8 + hostname_len + normalized_len + 2; // "https://" + hostname + path + optional "/" + null
+    const size_t max_url_len = scheme_len + 3 + hostname_len + normalized_len + 2;
     if (max_url_len >= sizeof(mount_data->url))
     {
         XFS_DEBUG("https: mount failed: URL too long (hostname=%zu, path=%zu)\n", hostname_len, normalized_len);
@@ -595,11 +713,11 @@ static int16_t https_mount(const struct xfs_engine_t* engine, const char* hostna
         // Path already starts with '/', so don't add another one after hostname
         if (path_ends_with_slash)
         {
-            url_written = snprintf(mount_data->url, sizeof(mount_data->url), "https://%s%s", hostname, normalized_path);
+            url_written = snprintf(mount_data->url, sizeof(mount_data->url), "%s://%s%s", scheme, hostname, normalized_path);
         }
         else
         {
-            url_written = snprintf(mount_data->url, sizeof(mount_data->url), "https://%s%s/", hostname, normalized_path);
+            url_written = snprintf(mount_data->url, sizeof(mount_data->url), "%s://%s%s/", scheme, hostname, normalized_path);
         }
     }
     else
@@ -607,11 +725,11 @@ static int16_t https_mount(const struct xfs_engine_t* engine, const char* hostna
         // Path doesn't start with '/', so add one after hostname
         if (path_ends_with_slash)
         {
-            url_written = snprintf(mount_data->url, sizeof(mount_data->url), "https://%s/%s", hostname, normalized_path);
+            url_written = snprintf(mount_data->url, sizeof(mount_data->url), "%s://%s/%s", scheme, hostname, normalized_path);
         }
         else
         {
-            url_written = snprintf(mount_data->url, sizeof(mount_data->url), "https://%s/%s/", hostname, normalized_path);
+            url_written = snprintf(mount_data->url, sizeof(mount_data->url), "%s://%s/%s/", scheme, hostname, normalized_path);
         }
     }
     
@@ -633,33 +751,46 @@ static int16_t https_mount(const struct xfs_engine_t* engine, const char* hostna
     // Verify mount URL exists using HEAD request
     XFS_DEBUG("https: mount verifying URL with HEAD request: %s\n", mount_data->url);
     const int head_result = httpc_head(&tls_sck, mount_data->url);
+
+    if (head_result != HTTPC_OK)
+    {
+        XFS_DEBUG("https: mount failed: HEAD request failed (result=%d, response=%d)\n",
+                  head_result, tls_sck.response);
+        out_mount->mount_data = NULL;
+        free(mount_data);
+        return XFS_ERR_IO;
+    }
     
-    // Check response code first - 3xx responses (including 304 Not Modified) are acceptable
-    if (tls_sck.response >= 300 && tls_sck.response < 400)
+    // Prefer the HTTP response code when the server returned one. httpc_head can
+    // return HTTPC_OK for a completed HTTP error response such as 404.
+    if ((tls_sck.response >= 200 && tls_sck.response < 400) || tls_sck.response == 405 || tls_sck.response == 403)
     {
         XFS_DEBUG("https: mount HEAD request successful (response=%d)\n", tls_sck.response);
         return XFS_ERR_OK;
     }
-    
-    if (head_result != HTTPC_OK)
+
+    if (tls_sck.response == 404)
     {
-        XFS_DEBUG("https: mount failed: HEAD request failed (result=%d, response=%d)\n", 
-                  head_result, tls_sck.response);
+        XFS_DEBUG("https: mount failed: URL not found (response=%d)\n", tls_sck.response);
         out_mount->mount_data = NULL;
-        libspectrum_free(mount_data);
-        // Map HTTP response codes to XFS error codes
-        if (tls_sck.response == 404)
-        {
-            return XFS_ERR_NOENT;
-        }
-        else if (tls_sck.response >= 400 && tls_sck.response < 500)
-        {
-            return XFS_ERR_INVAL;
-        }
-        else
-        {
-            return XFS_ERR_IO;
-        }
+        free(mount_data);
+        return XFS_ERR_NOENT;
+    }
+
+    if (tls_sck.response >= 400 && tls_sck.response < 500)
+    {
+        XFS_DEBUG("https: mount failed: client error (response=%d)\n", tls_sck.response);
+        out_mount->mount_data = NULL;
+        free(mount_data);
+        return XFS_ERR_INVAL;
+    }
+
+    if (tls_sck.response >= 500 && tls_sck.response < 600)
+    {
+        XFS_DEBUG("https: mount failed: server error (response=%d)\n", tls_sck.response);
+        out_mount->mount_data = NULL;
+        free(mount_data);
+        return XFS_ERR_IO;
     }
 
     XFS_DEBUG("https: mount HEAD request successful (response=%d)\n", tls_sck.response);
@@ -667,20 +798,20 @@ static int16_t https_mount(const struct xfs_engine_t* engine, const char* hostna
     return XFS_ERR_OK;
 }
 
-// Unmount HTTPS filesystem
+// Unmount HTTPS filesystem — free directory cache and mount data
 static void https_unmount(const struct xfs_engine_t* engine, struct xfs_engine_mount_t* mount)
 {
-    XFS_DEBUG("https: unmount\n");
-    
     (void)engine;
-    
+    XFS_DEBUG("https: unmount\n");
+    xfs_close_handles_for_mount(mount);
+
     struct https_engine_mount_data_t* mount_data = get_mount_data(mount);
     if (!mount_data)
     {
         XFS_DEBUG("https: unmount: no mount data\n");
         return;
     }
-    
+
     // Free all cache entries
     for (int i = 0; i < HTTPS_DIR_CACHE_SIZE; i++)
     {
@@ -699,7 +830,7 @@ static void https_unmount(const struct xfs_engine_t* engine, struct xfs_engine_m
     libspectrum_free(mount_data);
 }
 
-// Open file - download to memory buffer
+// Open file — download body into a PSRAM blob (see download_blob.c)
 static int16_t https_open(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, const char* path, int flags)
 {
     XFS_DEBUG("https: open path='%s' flags=0x%04x\n", path ? path : "(null)", flags);
@@ -739,20 +870,33 @@ static int16_t https_open(const struct xfs_engine_mount_t* engine, struct xfs_ha
     {
         XFS_DEBUG("https: open failed: httpc_get error\n");
         if (buffer_info.data)
-        {
             libspectrum_free(buffer_info.data);
-        }
         libspectrum_free(https_handle);
         return XFS_ERR_IO;
     }
-    
-    XFS_DEBUG("https: open download complete, size=%zu\n", buffer_info.size);
-    
-    // Store buffer pointer and size
-    https_handle->data = buffer_info.data;
-    https_handle->size = buffer_info.size;
-    https_handle->pos = 0;
 
+    if (tls_sck.response < 200 || tls_sck.response >= 300)
+    {
+        XFS_DEBUG("https: open failed: HTTP response=%d\n", tls_sck.response);
+        if (buffer_info.data)
+            libspectrum_free(buffer_info.data);
+        libspectrum_free(https_handle);
+
+        if (tls_sck.response == 404)
+        {
+            return XFS_ERR_NOENT;
+        }
+
+        return XFS_ERR_IO;
+    }
+
+    https_handle->blob = buffer_info.data;
+    https_handle->blob_size = buffer_info.size;
+    https_handle->read_pos = 0;
+
+    XFS_DEBUG("https: open download complete bytes=%zu\n", https_handle->blob_size);
+
+    https_handle->live = 1;
     handle->type = XFS_HANDLE_TYPE_FILE;
     handle->data = https_handle;
 
@@ -760,33 +904,58 @@ static int16_t https_open(const struct xfs_engine_mount_t* engine, struct xfs_ha
     return XFS_ERR_OK;
 }
 
-// Read from memory buffer
-static int16_t https_read(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, void* buffer, uint16_t size)
+// Read from downloaded blob
+static int32_t https_read(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, void* buffer, uint32_t size)
 {
     (void)engine;
-    struct xfs_handle_https_file_t* https_handle = get_https_file_handle(handle);
+    struct xfs_handle_https_file_t *https_handle = get_https_file_handle(handle);
 
-    // Check if we're at end of file
-    if (https_handle->pos >= https_handle->size)
+    if (!https_handle || !https_handle->blob)
     {
-        XFS_DEBUG("https: read EOF\n");
-        return 0;
+        XFS_DEBUG("https: read failed: invalid handle\n");
+        return XFS_ERR_BADF;
     }
-    
-    // Calculate how much we can read
-    size_t remaining = https_handle->size - https_handle->pos;
-    size_t to_read = (size < remaining) ? size : remaining;
-    
-    // Copy data from buffer
-    memcpy(buffer, (unsigned char*)https_handle->data + https_handle->pos, to_read);
-    https_handle->pos += to_read;
-    
-    XFS_DEBUG("https: read size=%d bytes_read=%zu\n", size, to_read);
-    return (int16_t)to_read;
+
+    if (https_handle->read_pos > https_handle->blob_size)
+    {
+        XFS_DEBUG("https: read: read_pos > blob_size (corrupt state)\n");
+        return XFS_ERR_IO;
+    }
+
+    const size_t avail = https_handle->blob_size - https_handle->read_pos;
+    const uint32_t take = (size > avail) ? (uint32_t)avail : size;
+    const int32_t n = (int32_t)take;
+
+    if (n > 0 && buffer != NULL)
+        memmove(buffer, https_handle->blob + https_handle->read_pos, (size_t)n);
+
+    https_handle->read_pos += (size_t)n;
+
+    XFS_DEBUG("https: read size=%lu bytes_read=%ld\n", (unsigned long)size, (long)n);
+    return n;
+}
+
+/** Expose download blob + size without copying (valid until close frees the blob). */
+static const uint8_t *https_direct_read(const struct xfs_engine_mount_t *engine, struct xfs_handle_t *handle,
+                                        size_t *out_len)
+{
+    (void)engine;
+    if (!out_len)
+        return NULL;
+
+    struct xfs_handle_https_file_t *h = get_https_file_handle(handle);
+    if (!h || !h->blob)
+    {
+        *out_len = 0;
+        return NULL;
+    }
+
+    *out_len = h->blob_size;
+    return h->blob;
 }
 
 // Write not supported
-static int16_t https_write(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, const void* buffer, uint16_t size)
+static int32_t https_write(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, const void* buffer, uint32_t size)
 {
     XFS_DEBUG("https: write called (not supported)\n");
     (void)engine;
@@ -796,178 +965,75 @@ static int16_t https_write(const struct xfs_engine_mount_t* engine, struct xfs_h
     return XFS_ERR_INVAL;
 }
 
-// Close file and free memory buffer
+/* Release blob; wrapper freed in https_free_handle. Safe to call twice (e.g. close + xfs_free). */
 static int16_t https_close(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle)
 {
     XFS_DEBUG("https: close\n");
     (void)engine;
 
-    struct xfs_handle_https_file_t* https_handle = get_https_file_handle(handle);
-    
-    // Free buffer
-    if (https_handle->data)
+    if (!handle->data)
     {
-        libspectrum_free(https_handle->data);
-        https_handle->data = NULL;
+        return XFS_ERR_OK;
     }
-    
-    // Free file handle
-    libspectrum_free(https_handle);
-    handle->data = NULL;
-    
+
+    struct xfs_handle_https_file_t *https_handle = get_https_file_handle(handle);
+    if (!https_handle || !https_handle->live)
+    {
+        return XFS_ERR_OK;
+    }
+
+    if (https_handle->blob)
+    {
+        libspectrum_free(https_handle->blob);
+        https_handle->blob = NULL;
+    }
+
+    https_handle->live = 0;
+
     XFS_DEBUG("https: close success\n");
     return XFS_ERR_OK;
 }
 
-// Seek in memory buffer
-static int16_t https_lseek(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, uint32_t offset, uint8_t whence)
+// Seek within downloaded blob (read_pos)
+static int32_t https_lseek(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, uint32_t offset, uint8_t whence)
 {
     XFS_DEBUG("https: lseek offset=%lu whence=%d\n", (unsigned long)offset, whence);
     (void)engine;
 
-    struct xfs_handle_https_file_t* https_handle = get_https_file_handle(handle);
-    
-    size_t new_pos;
-    if (whence == 0) // SEEK_SET
+    struct xfs_handle_https_file_t *https_handle = get_https_file_handle(handle);
+    if (!https_handle || !https_handle->blob)
     {
-        new_pos = offset;
+        XFS_DEBUG("https: lseek failed: invalid handle\n");
+        return XFS_ERR_BADF;
     }
-    else if (whence == 1) // SEEK_CUR
-    {
-        new_pos = https_handle->pos + offset;
-    }
-    else if (whence == 2) // SEEK_END
-    {
-        new_pos = https_handle->size + offset;
-    }
+
+    const size_t sz = https_handle->blob_size;
+    size_t new_pos = https_handle->read_pos;
+
+    if (whence == 0) /* SEEK_SET */
+        new_pos = (size_t)offset;
+    else if (whence == 1) /* SEEK_CUR */
+        new_pos = https_handle->read_pos + (size_t)offset;
+    else if (whence == 2) /* SEEK_END */
+        new_pos = sz + (size_t)offset;
     else
     {
         XFS_DEBUG("https: lseek failed: invalid whence\n");
         return XFS_ERR_INVAL;
     }
-    
-    // Clamp to valid range
-    if (new_pos > https_handle->size)
+
+    if (new_pos > sz)
+        new_pos = sz;
+
+    https_handle->read_pos = new_pos;
+
+    if (new_pos > (size_t)INT32_MAX)
     {
-        new_pos = https_handle->size;
-    }
-    
-    https_handle->pos = new_pos;
-    
-    XFS_DEBUG("https: lseek new_pos=%zu\n", new_pos);
-    return (int16_t)new_pos;
-}
-
-// Parse index.txt buffer and populate entries array
-// Returns number of entries parsed, or -1 on error
-// If entries is NULL and max_entries is 0, only counts entries (doesn't allocate)
-// If search_name is non-NULL, stops at first matching entry and returns 1 if found, -1 if not found
-// If found_entry is provided and search_name is set, fills found_entry with the matching entry
-static int https_parse_index_txt(const char* buffer, const size_t buffer_len,
-    struct xfs_handle_https_dir_entry_t** entries,
-    const uint8_t max_entries)
-{
-    size_t pos = 0;
-    uint8_t entry_idx = 0;
-    
-    while (pos < buffer_len && (max_entries == 0 || entry_idx < max_entries))
-    {
-        // Skip whitespace and empty lines
-        while (pos < buffer_len && (buffer[pos] == ' ' || buffer[pos] == '\t' || buffer[pos] == '\n' || buffer[pos] == '\r'))
-        {
-            pos++;
-        }
-        
-        if (pos >= buffer_len)
-            break;
-        
-        // Find end of line
-        size_t line_start = pos;
-        size_t line_end = pos;
-        while (line_end < buffer_len && buffer[line_end] != '\n' && buffer[line_end] != '\r')
-        {
-            line_end++;
-        }
-        
-        if (line_end > line_start)
-        {
-            // Extract line
-            size_t line_len = line_end - line_start;
-            char line[256];
-            if (line_len >= sizeof(line))
-            {
-                line_len = sizeof(line) - 1;
-            }
-            memcpy(line, buffer + line_start, line_len);
-            line[line_len] = '\0';
-            
-            // Determine which entry buffer to use
-            struct xfs_handle_https_dir_entry_t* entry = NULL;
-            struct xfs_handle_https_dir_entry_t temp_entry;
-            int should_allocate = 0;
-            
-            if (max_entries > 0 && entries)
-            {
-                // Parsing all entries, allocate new entry
-                should_allocate = 1;
-            }
-            else
-            {
-                // Just counting, use temp buffer
-                entry = &temp_entry;
-            }
-            
-            if (should_allocate)
-            {
-                entry = (struct xfs_handle_https_dir_entry_t*)libspectrum_malloc(
-                    sizeof(struct xfs_handle_https_dir_entry_t));
-            }
-
-            if (entry == NULL)
-            {
-                return -1; // Out of memory?
-            }
-
-            // Parse entry
-            if (parse_index_line_to_entry(line, entry) == 0)
-            {
-                // If searching for specific name, check if it matches
-                if (max_entries > 0 && entries)
-                {
-                    // Store in entries array
-                    entries[entry_idx] = entry;
-                    entry_idx++;
-                }
-                else
-                {
-                    // Just counting or searching (but not found yet)
-                    entry_idx++;
-                    if (should_allocate)
-                    {
-                        // We allocated but didn't store, free it
-                        libspectrum_free(entry);
-                    }
-                }
-            }
-            else
-            {
-                // Invalid entry
-                if (should_allocate)
-                {
-                    libspectrum_free(entry);
-                }
-            }
-        }
-        
-        // Skip line ending
-        pos = line_end;
-        if (pos < buffer_len && buffer[pos] == '\r')
-            pos++;
-        if (pos < buffer_len && buffer[pos] == '\n')
-            pos++;
+        XFS_DEBUG("https: lseek: position exceeds int32_t range\n");
+        return XFS_ERR_INVAL;
     }
 
-    return entry_idx;
+    return (int32_t)new_pos;
 }
 
 // Parse index.txt file line into xfs_handle_https_dir_entry_t
@@ -1065,25 +1131,27 @@ static int16_t https_opendir(const struct xfs_engine_mount_t* engine, struct xfs
 
     uint8_t entry_count = 0;
 
-    struct xfs_handle_https_dir_t* https_handle = libspectrum_malloc(sizeof(struct xfs_handle_https_dir_t));
-    if (!https_handle)
+    struct xfs_handle_https_dir_t* https_handle = calloc(1, sizeof(struct xfs_handle_https_dir_t));
+
+    if (https_handle == NULL)
     {
         return XFS_ERR_NOMEM;
     }
-    memset(https_handle, 0, sizeof(struct xfs_handle_https_dir_t));
 
     const int16_t result = https_fetch_and_parse_index(engine, path, &https_handle->dir_entries, &entry_count);
     
     if (result != XFS_ERR_OK)
     {
-        libspectrum_free(https_handle);
+        free(https_handle);
         return result;
     }
     
     if (entry_count == 0)
     {
         // Empty directory
-        libspectrum_free(https_handle);
+        https_handle->live = 1;
+        handle->type = XFS_HANDLE_TYPE_DIR;
+        handle->data = https_handle;
         return XFS_ERR_OK;
     }
 
@@ -1095,8 +1163,9 @@ static int16_t https_opendir(const struct xfs_engine_mount_t* engine, struct xfs
     https_normalize_dir_path(path, cache_path);
     https_cache_put_entries(engine, cache_path, https_handle->dir_entries, entry_count);
     
-    handle->data = https_handle;
+    https_handle->live = 1;
     handle->type = XFS_HANDLE_TYPE_DIR;
+    handle->data = https_handle;
     
     return XFS_ERR_OK;
 }
@@ -1145,10 +1214,38 @@ static int16_t https_readdir(const struct xfs_engine_mount_t* engine, struct xfs
     return 1; // Entry found
 }
 
-// Close directory
+/* Free opendir entries; dir wrapper freed in https_free_handle. Safe to call twice. */
 static int16_t https_closedir(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle)
 {
     (void)engine;
+
+    if (!handle->data)
+    {
+        return XFS_ERR_OK;
+    }
+
+    struct xfs_handle_https_dir_t* https_handle = get_https_dir_handle(handle);
+    if (!https_handle || !https_handle->live)
+    {
+        return XFS_ERR_OK;
+    }
+
+    if (https_handle->dir_entries)
+    {
+        for (uint8_t i = 0; i < https_handle->dir_entries_count; i++)
+        {
+            if (https_handle->dir_entries[i])
+            {
+                free(https_handle->dir_entries[i]);
+            }
+        }
+        free(https_handle->dir_entries);
+        https_handle->dir_entries = NULL;
+    }
+    https_handle->dir_entries_count = 0;
+    https_handle->dir_entries_pos = 0;
+    https_handle->live = 0;
+
     XFS_DEBUG("https: closedir success\n");
     return XFS_ERR_OK;
 }
@@ -1399,59 +1496,76 @@ static int16_t https_rename(const struct xfs_engine_mount_t* engine, const char*
     return XFS_ERR_INVAL;
 }
 
-// Free handle resources
+// Free handle resources (calls https_close / https_closedir first so teardown matches normal close)
 static void https_free_handle(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle)
 {
-    (void)engine;
-
     if (handle->type == XFS_HANDLE_TYPE_FILE)
     {
-        struct xfs_handle_https_file_t* https_handle = get_https_file_handle(handle);
-
-        // Free buffer if exists
-        if (https_handle)
-        {
-          if (https_handle->data)
-          {
-              libspectrum_free(https_handle->data);
-              https_handle->data = NULL;
-          }
-
-          libspectrum_free(https_handle);
-        }
+        (void)https_close(engine, handle);
+        free(handle->data);
     }
     else if (handle->type == XFS_HANDLE_TYPE_DIR)
     {
-        struct xfs_handle_https_dir_t* https_handle = get_https_dir_handle(handle);
-
-        // Free directory entries
-        if (https_handle && https_handle->dir_entries)
-        {
-            for (uint8_t i = 0; i < https_handle->dir_entries_count; i++)
-            {
-                if (https_handle->dir_entries[i])
-                {
-                    libspectrum_free(https_handle->dir_entries[i]);
-                }
-            }
-            libspectrum_free(https_handle->dir_entries);
-            https_handle->dir_entries = NULL;
-            https_handle->dir_entries_count = 0;
-            libspectrum_free(https_handle);
-        }
-
+        (void)https_closedir(engine, handle);
+        free(handle->data);
     }
 
     handle->data = NULL;
 }
 
+static void https_mount_info(const struct xfs_engine_mount_t *engine_mount, char *buf, size_t buflen)
+{
+    if (!buf || buflen == 0)
+    {
+        return;
+    }
+    buf[0] = '\0';
+    if (!engine_mount || !engine_mount->mount_data)
+    {
+        return;
+    }
+    const struct https_engine_mount_data_t *md = get_mount_data(engine_mount);
+    if (!md)
+    {
+        return;
+    }
+    strncpy(buf, md->url, buflen - 1);
+    buf[buflen - 1] = '\0';
+}
+
 // HTTPS engine instance
 struct xfs_engine_t https_engine = {
-    .user = NULL,
+    .user = (void*)HTTPS_SCHEME,
     .mount = https_mount,
     .unmount = https_unmount,
+    .mount_info = https_mount_info,
     .open = https_open,
     .read = https_read,
+    .direct_read = https_direct_read,
+    .write = https_write,
+    .close = https_close,
+    .lseek = https_lseek,
+    .opendir = https_opendir,
+    .readdir = https_readdir,
+    .closedir = https_closedir,
+    .stat = https_stat,
+    .unlink = https_unlink,
+    .mkdir = https_mkdir,
+    .rmdir = https_rmdir,
+    .chdir = https_chdir,
+    .getcwd = https_getcwd,
+    .rename = https_rename,
+    .free_handle = https_free_handle,
+};
+
+struct xfs_engine_t http_engine = {
+    .user = (void*)HTTP_SCHEME,
+    .mount = https_mount,
+    .unmount = https_unmount,
+    .mount_info = https_mount_info,
+    .open = https_open,
+    .read = https_read,
+    .direct_read = https_direct_read,
     .write = https_write,
     .close = https_close,
     .lseek = https_lseek,

@@ -218,8 +218,12 @@ static void process_remote_command(const char *hex_command)
     }
 
     for (entry = remote_commands; entry->name; entry++) {
-        if (!strcmp(command, entry->name)) {
-            if (entry->handler())
+        size_t name_len = strlen(entry->name);
+        if (!strncmp(command, entry->name, name_len) &&
+            (command[name_len] == '\0' || command[name_len] == ' ' || command[name_len] == '\t')) {
+            const char *args = command + name_len;
+            while (*args == ' ' || *args == '\t') args++;
+            if (entry->handler(args))
                 packet_send_message((const uint8_t *)"E01", 3);
             else
                 packet_send_message((const uint8_t *)"OK", 2);

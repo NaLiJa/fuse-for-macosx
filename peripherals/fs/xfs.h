@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <sys/cdefs.h>
 #include <stdint.h>
 
@@ -66,6 +67,7 @@ enum xfs_whence_flags {
 #define XFS_CMD_RENAME (15)
 #define XFS_CMD_LSEEK (16)
 #define XFS_CMD_UNMOUNT (17)
+#define XFS_CMD_MOUNT_INFO (18)
 
 #define XFS_STATUS_IDLE (0)
 #define XFS_STATUS_BUSY (1)
@@ -97,13 +99,20 @@ struct xfs_engine_t
     int16_t (*mount)(const struct xfs_engine_t* engine, const char* hostname, const char* path, struct xfs_engine_mount_t* out_mount);
     uint8_t (*is_mounted)(const struct xfs_engine_t* engine, struct xfs_engine_mount_t* mount);
     void (*unmount)(const struct xfs_engine_t* engine, struct xfs_engine_mount_t* mount);
+    void (*mount_info)(const struct xfs_engine_mount_t* mount, char* buffer, size_t size);
 
     // File operations
     int16_t (*open)(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, const char* path, int flags);
-    int16_t (*read)(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, void* buffer, uint16_t size);
-    int16_t (*write)(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, const void* buffer, uint16_t size);
+    int32_t (*read)(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, void* buffer, uint32_t size);
+    /**
+     * If non-NULL, returns a pointer to contiguous file bytes and sets *out_len.
+     * Used to avoid copying (e.g. HTTPS download blob). LittleFS leaves this NULL.
+     * Caller must not hold the pointer past close/free_handle.
+     */
+    const uint8_t* (*direct_read)(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, size_t* out_len);
+    int32_t (*write)(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, const void* buffer, uint32_t size);
     int16_t (*close)(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle);
-    int16_t (*lseek)(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, uint32_t offset, uint8_t whence);
+    int32_t (*lseek)(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, uint32_t offset, uint8_t whence);
 
     // Directory operations
     int16_t (*opendir)(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, const char* path);
@@ -140,6 +149,8 @@ struct xfs_handle_https_dir_entry_t
 struct xfs_handle_t
 {
     enum xfs_handle_type_t type;
+    /** Mount point this handle belongs to (0–3); 0xFF when unallocated. */
+    uint8_t owner_mount;
     void* data;
 };
 
@@ -292,19 +303,25 @@ struct xfs_registers_t
 #pragma pack(pop)
 
 _Static_assert(4096 == sizeof(struct xfs_registers_t), "xfs_registers_t is not 4096");
+_Static_assert(0x200 == offsetof(struct xfs_registers_t, workspace), "workspace is not at 0x200");
+_Static_assert(0x008 == offsetof(struct xfs_registers_t, arguments), "arguments is not at 0x008");
 
 extern void xfs_init();
 extern void xfs_reset(void);
+
+/** Close all XFS handles for this mount (call from engine unmount; idempotent if already empty). */
+void xfs_close_handles_for_mount(const struct xfs_engine_mount_t *mount);
 
 // XFS debug logging control
 extern void xfs_debug_enable(bool enable);
 extern bool xfs_debug_is_enabled(void);
 
 // Command handlers (FreeRTOS-independent, usable in emulator)
-extern void xfs_handle_command(struct xfs_registers_t* registers);
+extern void xfs_handle_command(volatile struct xfs_registers_t* registers);
 extern void xfs_free(void);
-extern void xfs_handle_mount(struct xfs_registers_t* registers);
-extern void xfs_handle_umount(struct xfs_registers_t* registers);
+extern void xfs_handle_mount(volatile struct xfs_registers_t* registers);
+extern void xfs_handle_umount(volatile struct xfs_registers_t* registers);
+extern void xfs_handle_mount_info(volatile struct xfs_registers_t* registers);
 
 // Mounted engines array (shared between task and emulator)
 extern struct xfs_engine_mount_t xfs_mounted_engines[4];

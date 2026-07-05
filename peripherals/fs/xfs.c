@@ -26,6 +26,8 @@ static inline uint8_t allocate_handle(enum xfs_handle_type_t type)
         if (xfs_handles[i].type == XFS_HANDLE_TYPE_NONE)
         {
             xfs_handles[i].type = type;
+            xfs_handles[i].owner_mount = 0xFF;
+            xfs_handles[i].data = NULL;
             return i + 1;
         }
     }
@@ -43,6 +45,7 @@ static inline void free_handle(const uint8_t handle, const uint8_t mount_point)
             current_engine->free_handle(&xfs_mounted_engines[mount_point], h);
         }
         h->type = XFS_HANDLE_TYPE_NONE;
+        h->owner_mount = 0xFF;
         h->data = NULL;
     }
 }
@@ -55,7 +58,7 @@ static inline bool ensure_mounted(const uint8_t mount_point)
 /**
  * Handle XFS mount command
  */
-void xfs_handle_mount(struct xfs_registers_t* registers)
+void xfs_handle_mount(volatile struct xfs_registers_t* registers)
 {
     const char* protocol = (const char*)registers->arguments.mount.protocol;
     const char* hostname = (const char*)registers->arguments.mount.hostname;
@@ -92,13 +95,13 @@ void xfs_handle_mount(struct xfs_registers_t* registers)
     {
         XFS_DEBUG("xfs: mount hostname='%s' path='%s' mount_point=%d\n", hostname, path, mount_point);
 
-        if (strcmp(hostname, "ram") == 0)
+        if (strcmp(hostname, "ram") == 0 && (path[0] == '\0' || strcmp(path, "/") == 0))
         {
             engine = &xfs_ram_engine;
         }
         else
         {
-            XFS_DEBUG("xfs: mount failed: invalid hostname\n");
+            XFS_DEBUG("xfs: mount failed: invalid ram mount target\n");
             registers->result = XFS_ERR_INVAL;
             registers->status = XFS_STATUS_ERROR;
             return;
@@ -108,6 +111,11 @@ void xfs_handle_mount(struct xfs_registers_t* registers)
     {
         XFS_DEBUG("xfs: mount https hostname='%s' path='%s' mount_point=%d\n", hostname, path, mount_point);
         engine = &https_engine;
+    }
+    else if (strcmp(protocol, "http") == 0)
+    {
+        XFS_DEBUG("xfs: mount http hostname='%s' path='%s' mount_point=%d\n", hostname, path, mount_point);
+        engine = &http_engine;
     }
     else
     {
@@ -133,7 +141,103 @@ void xfs_handle_mount(struct xfs_registers_t* registers)
     }
 }
 
-void xfs_handle_open(struct xfs_registers_t* registers)
+void xfs_close_handles_for_mount(const struct xfs_engine_mount_t *mount)
+{
+    if (!mount)
+        return;
+
+    int mp = -1;
+    for (int i = 0; i < 4; i++)
+    {
+        if (&xfs_mounted_engines[i] == mount)
+        {
+            mp = i;
+            break;
+        }
+    }
+    if (mp < 0)
+        return;
+
+    const uint8_t mpu = (uint8_t)mp;
+    for (uint8_t hi = 1; hi <= XFS_MAX_FDS; hi++)
+    {
+        struct xfs_handle_t *h = get_handle(hi);
+        if (h && h->type != XFS_HANDLE_TYPE_NONE && h->owner_mount == mpu)
+            free_handle(hi, mpu);
+    }
+}
+
+void xfs_handle_umount(volatile struct xfs_registers_t* registers)
+{
+    const int mount_point = registers->mount_point;
+
+    if (mount_point < 0 || mount_point >= 4)
+    {
+        XFS_DEBUG("xfs: umount failed: invalid mount_point=%d\n", mount_point);
+        registers->result = XFS_ERR_INVAL;
+        registers->status = XFS_STATUS_ERROR;
+        return;
+    }
+
+    if (xfs_mounted_engines[mount_point].engine == NULL)
+    {
+        XFS_DEBUG("xfs: umount mount_point=%d (already idle)\n", mount_point);
+        registers->result = 0;
+        registers->status = XFS_STATUS_COMPLETE;
+        return;
+    }
+
+    struct xfs_engine_t* const eng = xfs_mounted_engines[mount_point].engine;
+    if (eng->unmount)
+        eng->unmount(eng, &xfs_mounted_engines[mount_point]);
+
+    xfs_mounted_engines[mount_point].engine = NULL;
+
+    XFS_DEBUG("xfs: umount success mount_point=%d\n", mount_point);
+    registers->result = 0;
+    registers->status = XFS_STATUS_COMPLETE;
+}
+
+void xfs_handle_mount_info(volatile struct xfs_registers_t* registers)
+{
+    const int mount_point = registers->mount_point;
+
+    if (mount_point < 0 || mount_point >= 4)
+    {
+        XFS_DEBUG("xfs: mount_info failed: invalid mount_point=%d\n", mount_point);
+        registers->result = XFS_ERR_INVAL;
+        registers->status = XFS_STATUS_ERROR;
+        return;
+    }
+
+    struct xfs_engine_mount_t* mount = &xfs_mounted_engines[mount_point];
+    if (mount->engine == NULL)
+    {
+        XFS_DEBUG("xfs: mount_info failed: not mounted mount_point=%d\n", mount_point);
+        registers->result = XFS_ERR_NOENT;
+        registers->status = XFS_STATUS_ERROR;
+        return;
+    }
+
+    char* const out = (char*)registers->workspace;
+    out[0] = '\0';
+
+    if (mount->engine->mount_info)
+    {
+        mount->engine->mount_info(mount, out, 128);
+    }
+    else
+    {
+        strncpy(out, "XFS", 127);
+        out[127] = '\0';
+    }
+
+    XFS_DEBUG("xfs: mount_info mount_point=%d value='%s'\n", mount_point, out);
+    registers->result = 0;
+    registers->status = XFS_STATUS_COMPLETE;
+}
+
+void xfs_handle_open(volatile struct xfs_registers_t* registers)
 {
     const char* path = (const char*)registers->arguments.open.path;
     const uint16_t flags = registers->arguments.open.flags;
@@ -190,13 +294,14 @@ void xfs_handle_open(struct xfs_registers_t* registers)
     }
     else
     {
+        h->owner_mount = mount_point;
         XFS_DEBUG("xfs: open success handle=%d\n", handle);
         registers->file_handle = handle;
         registers->result = 0;
         registers->status = XFS_STATUS_COMPLETE;
     }
 }
-void xfs_handle_read(struct xfs_registers_t* registers)
+void xfs_handle_read(volatile struct xfs_registers_t* registers)
 {
     const uint8_t handle = registers->file_handle;
     const uint16_t size = registers->arguments.read.size;
@@ -231,7 +336,7 @@ void xfs_handle_read(struct xfs_registers_t* registers)
     }
 }
 
-void xfs_handle_write(struct xfs_registers_t* registers)
+void xfs_handle_write(volatile struct xfs_registers_t* registers)
 {
     const uint8_t handle = registers->file_handle;
     const uint16_t size = registers->arguments.write.size;
@@ -267,7 +372,7 @@ void xfs_handle_write(struct xfs_registers_t* registers)
     }
 }
 
-void xfs_handle_close(struct xfs_registers_t* registers)
+void xfs_handle_close(volatile struct xfs_registers_t* registers)
 {
     const uint8_t handle = registers->file_handle;
     const uint8_t mount_point = registers->mount_point;
@@ -309,7 +414,7 @@ void xfs_handle_close(struct xfs_registers_t* registers)
     }
 }
 
-void xfs_handle_opendir(struct xfs_registers_t* registers)
+void xfs_handle_opendir(volatile struct xfs_registers_t* registers)
 {
     const char* path = (const char*)registers->arguments.opendir.path;
     const uint8_t mount_point = registers->mount_point;
@@ -345,6 +450,7 @@ void xfs_handle_opendir(struct xfs_registers_t* registers)
     }
     else
     {
+        h->owner_mount = mount_point;
         XFS_DEBUG("xfs: opendir %s success handle=%d mount_point=%d\n", path, handle, mount_point);
         registers->result = 0;
         registers->file_handle = handle;
@@ -352,7 +458,7 @@ void xfs_handle_opendir(struct xfs_registers_t* registers)
     }
 }
 
-void xfs_handle_readdir(struct xfs_registers_t* registers)
+void xfs_handle_readdir(volatile struct xfs_registers_t* registers)
 {
     const uint8_t handle = registers->file_handle;
     const uint8_t mount_point = registers->mount_point;
@@ -382,6 +488,9 @@ void xfs_handle_readdir(struct xfs_registers_t* registers)
         if (err == 0)
         {
             XFS_DEBUG("xfs: readdir eod\n");
+            /* Z80 F_readdir treats empty workspace as EOD; clear before result so a torn
+             * 16-bit read of result cannot pair stale filename bytes with a bogus "success". */
+            registers->workspace[0] = '\0';
             registers->result = 1;
         }
         else
@@ -394,7 +503,7 @@ void xfs_handle_readdir(struct xfs_registers_t* registers)
     }
 }
 
-void xfs_handle_closedir(struct xfs_registers_t* registers)
+void xfs_handle_closedir(volatile struct xfs_registers_t* registers)
 {
     uint8_t handle = registers->file_handle;
     const uint8_t mount_point = registers->mount_point;
@@ -427,7 +536,7 @@ void xfs_handle_closedir(struct xfs_registers_t* registers)
     }
 }
 
-void xfs_handle_stat(struct xfs_registers_t* registers)
+void xfs_handle_stat(volatile struct xfs_registers_t* registers)
 {
     const char* path = (const char*)registers->arguments.stat.path;
     const uint8_t mount_point = registers->mount_point;
@@ -478,7 +587,7 @@ void xfs_handle_stat(struct xfs_registers_t* registers)
     }
 }
 
-void xfs_handle_unlink(struct xfs_registers_t* registers)
+void xfs_handle_unlink(volatile struct xfs_registers_t* registers)
 {
     const char* path = (const char*)registers->arguments.unlink.path;
     const uint8_t mount_point = registers->mount_point;
@@ -509,7 +618,7 @@ void xfs_handle_unlink(struct xfs_registers_t* registers)
     }
 }
 
-void xfs_handle_mkdir(struct xfs_registers_t* registers)
+void xfs_handle_mkdir(volatile struct xfs_registers_t* registers)
 {
     const char* path = (const char*)registers->arguments.mkdir.path;
     const uint8_t mount_point = registers->mount_point;
@@ -540,7 +649,7 @@ void xfs_handle_mkdir(struct xfs_registers_t* registers)
     }
 }
 
-void xfs_handle_rmdir(struct xfs_registers_t* registers)
+void xfs_handle_rmdir(volatile struct xfs_registers_t* registers)
 {
     const char* path = (const char*)registers->arguments.rmdir.path;
     const uint8_t mount_point = registers->mount_point;
@@ -571,7 +680,7 @@ void xfs_handle_rmdir(struct xfs_registers_t* registers)
     }
 }
 
-void xfs_handle_chdir(struct xfs_registers_t* registers)
+void xfs_handle_chdir(volatile struct xfs_registers_t* registers)
 {
     const char* path = (const char*)registers->arguments.chdir.path;
     const uint8_t mount_point = registers->mount_point;
@@ -603,7 +712,7 @@ void xfs_handle_chdir(struct xfs_registers_t* registers)
     }
 }
 
-void xfs_handle_getcwd(struct xfs_registers_t* registers)
+void xfs_handle_getcwd(volatile struct xfs_registers_t* registers)
 {
     const uint8_t mount_point = registers->mount_point;
     const struct xfs_engine_mount_t* mounted_engine = &xfs_mounted_engines[mount_point];
@@ -633,7 +742,7 @@ void xfs_handle_getcwd(struct xfs_registers_t* registers)
     registers->status = XFS_STATUS_COMPLETE;
 }
 
-void xfs_handle_rename(struct xfs_registers_t* registers)
+void xfs_handle_rename(volatile struct xfs_registers_t* registers)
 {
     const char* old_path = (const char*)registers->arguments.rename.old_path;
     const char* new_path = (const char*)registers->arguments.rename.new_path;
@@ -666,7 +775,7 @@ void xfs_handle_rename(struct xfs_registers_t* registers)
     }
 }
 
-void xfs_handle_lseek(struct xfs_registers_t* registers)
+void xfs_handle_lseek(volatile struct xfs_registers_t* registers)
 {
     uint8_t handle = registers->file_handle;
     uint32_t offset = registers->arguments.lseek.offset;
@@ -685,7 +794,7 @@ void xfs_handle_lseek(struct xfs_registers_t* registers)
         return;
     }
 
-    int16_t new_pos = mounted_engine->engine->lseek(mounted_engine, h, offset, whence);
+    int32_t new_pos = mounted_engine->engine->lseek(mounted_engine, h, offset, whence);
 
     if (new_pos < 0)
     {
@@ -702,44 +811,12 @@ void xfs_handle_lseek(struct xfs_registers_t* registers)
     }
 }
 
-void xfs_handle_umount(struct xfs_registers_t* registers)
-{
-    const int mount_point = registers->mount_point;
-
-    if (mount_point < 0 || mount_point >= 4)
-    {
-        XFS_DEBUG("xfs: umount failed: invalid mount_point=%d\n", mount_point);
-        registers->result = XFS_ERR_INVAL;
-        registers->status = XFS_STATUS_ERROR;
-        return;
-    }
-
-    if (xfs_mounted_engines[mount_point].engine == NULL)
-    {
-        XFS_DEBUG("xfs: umount mount_point=%d (already idle)\n", mount_point);
-        registers->result = 0;
-        registers->status = XFS_STATUS_COMPLETE;
-        return;
-    }
-
-    struct xfs_engine_t* const eng = xfs_mounted_engines[mount_point].engine;
-    if (eng->unmount)
-        eng->unmount(eng, &xfs_mounted_engines[mount_point]);
-
-    xfs_mounted_engines[mount_point].engine = NULL;
-
-    XFS_DEBUG("xfs: umount success mount_point=%d\n", mount_point);
-    registers->result = 0;
-    registers->status = XFS_STATUS_COMPLETE;
-}
-
-
 /**
  * Handle XFS command dispatch
  * This function processes a command from the registers and dispatches to the appropriate handler
  * FreeRTOS-independent, usable in emulator
  */
-void xfs_handle_command(struct xfs_registers_t* registers)
+void xfs_handle_command(volatile struct xfs_registers_t* registers)
 {
     const uint8_t command = registers->command;
 
@@ -836,6 +913,11 @@ void xfs_handle_command(struct xfs_registers_t* registers)
                 xfs_handle_umount(registers);
                 break;
             }
+            case XFS_CMD_MOUNT_INFO:
+            {
+                xfs_handle_mount_info(registers);
+                break;
+            }
             default:
             {
                 XFS_DEBUG("xfs: unknown command=%d\n", command);
@@ -855,34 +937,7 @@ void xfs_free(void)
 {
     XFS_DEBUG("xfs: free - cleaning up all mounts and handles\n");
     
-    // First, free all open handles before unmounting
-    // We need to do this before unmounting because free_handle needs the engine
-    for (uint8_t i = 0; i < XFS_MAX_FDS; i++)
-    {
-        if (xfs_handles[i].type != XFS_HANDLE_TYPE_NONE)
-        {
-            XFS_DEBUG("xfs: free - freeing handle %d (type=%d)\n", i + 1, xfs_handles[i].type);
-            
-            struct xfs_handle_t* h = &xfs_handles[i];
-            
-            // Try to free engine-specific resources
-            // Since we don't know the mount_point, we'll try each mounted engine
-            for (uint8_t mp = 0; mp < 4; mp++)
-            {
-                if (xfs_mounted_engines[mp].engine != NULL && xfs_mounted_engines[mp].engine->free_handle)
-                {
-                    xfs_mounted_engines[mp].engine->free_handle(&xfs_mounted_engines[mp], h);
-                    break; // Only need to call once per handle
-                }
-            }
-            
-            // Clear handle state
-            h->type = XFS_HANDLE_TYPE_NONE;
-            h->data = NULL;
-        }
-    }
-    
-    // Now unmount all engines to clean up engine-specific mount resources
+    // unmount all engines to clean up engine-specific mount resources
     for (uint8_t mount_point = 0; mount_point < 4; mount_point++)
     {
         if (xfs_mounted_engines[mount_point].engine != NULL)

@@ -764,6 +764,19 @@ const uint8_t* spectranet_config_get_memory(void)
     return (const uint8_t*)spectranet_get_config_page();
 }
 
+int
+spectranet_dump_ram( const char *filename )
+{
+  libspectrum_byte *src;
+
+  if( !spectranet_memory_allocated ) return 1;
+
+  src = spectranet_full_map[SPECTRANET_RAM_BASE * MEMORY_PAGES_IN_4K].page;
+  if( !src ) return 1;
+
+  return utils_write_file( filename, src, SPECTRANET_RAM_LENGTH );
+}
+
 // Read 16-bit little-endian value from memory
 static uint16_t read_uint16(const uint8_t* memory, uint16_t offset)
 {
@@ -1370,6 +1383,12 @@ const uint8_t *
 spectranet_config_get_memory( void )
 {
   return NULL;
+}
+
+int
+spectranet_dump_ram( const char *filename GCC_UNUSED )
+{
+  return 1;
 }
 
 int

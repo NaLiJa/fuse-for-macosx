@@ -202,7 +202,7 @@ static int16_t fs_open(const struct xfs_engine_mount_t* engine, struct xfs_handl
 }
 
 // Read from file
-static int16_t fs_read(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, void* buffer, uint16_t size)
+static int32_t fs_read(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, void* buffer, uint32_t size)
 {
     struct xfs_fs_file_handle_t* file_handle = get_file_handle(handle);
     if (!file_handle) {
@@ -217,11 +217,11 @@ static int16_t fs_read(const struct xfs_engine_mount_t* engine, struct xfs_handl
     }
     
     XFS_DEBUG("fs: read success bytes=%zd\n", bytes_read);
-    return (int16_t)bytes_read;
+    return (int32_t)bytes_read;
 }
 
 // Write to file
-static int16_t fs_write(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, const void* buffer, uint16_t size)
+static int32_t fs_write(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, const void* buffer, uint32_t size)
 {
     if (!handle) {
         XFS_DEBUG("fs: write failed: handle is NULL\n");
@@ -285,7 +285,7 @@ static int16_t fs_write(const struct xfs_engine_mount_t* engine, struct xfs_hand
     }
     
     XFS_DEBUG("fs: write success bytes=%zd\n", bytes_written);
-    return (int16_t)bytes_written;
+    return (int32_t)bytes_written;
 }
 
 // Close file
@@ -310,7 +310,7 @@ static int16_t fs_close(const struct xfs_engine_mount_t* engine, struct xfs_hand
 }
 
 // Seek in file
-static int16_t fs_lseek(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, uint32_t offset, uint8_t whence)
+static int32_t fs_lseek(const struct xfs_engine_mount_t* engine, struct xfs_handle_t* handle, uint32_t offset, uint8_t whence)
 {
     struct xfs_fs_file_handle_t* file_handle = get_file_handle(handle);
     if (!file_handle) {
@@ -335,7 +335,7 @@ static int16_t fs_lseek(const struct xfs_engine_mount_t* engine, struct xfs_hand
     }
     
     XFS_DEBUG("fs: lseek success new_pos=%ld\n", (long)new_pos);
-    return (int16_t)new_pos;
+    return (int32_t)new_pos;
 }
 
 // Open directory

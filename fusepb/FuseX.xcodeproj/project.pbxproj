@@ -328,7 +328,7 @@
 		FE8E3FD92FD70FFB009FDB81 /* libssh2.framework in Copy Files */ = {isa = PBXBuildFile; fileRef = FE8E3FD72FD70FFB009FDB81 /* libssh2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FE8E3FDF2FDAE9CA009FDB81 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = FE8E3FDE2FDAE9CA009FDB81 /* Sparkle */; };
 		FE8E3FE22FDB108A009FDB81 /* FuseQLThumbnail.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = FE8E3FE12FDB108A009FDB81 /* FuseQLThumbnail.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		FE8E40202FD71100009FDB81 /* BuildFile in Copy Files */ = {isa = PBXBuildFile; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		FE8E40202FD71100009FDB81 /* (null) in Copy Files */ = {isa = PBXBuildFile; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FE9443BC2F881C540059A578 /* engine_argv.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9443B72F881C540059A578 /* engine_argv.c */; };
 		FE9443BD2F881C540059A578 /* lexer.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9443B02F881C540059A578 /* lexer.c */; };
 		FE9443BE2F881C540059A578 /* engine_fs.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9443B92F881C540059A578 /* engine_fs.c */; };
@@ -445,7 +445,7 @@
 			files = (
 				B6FA75C60C1D76A5007F5A10 /* audiofile.framework in Copy Files */,
 				FED24C472EE104C60013DD32 /* mbedtls.framework in Copy Files */,
-				FE8E40202FD71100009FDB81 /* BuildFile in Copy Files */,
+				FE8E40202FD71100009FDB81 /* (null) in Copy Files */,
 				B6D65C3818A645A100170B64 /* gcrypt.framework in Copy Files */,
 				FE8E3FD92FD70FFB009FDB81 /* libssh2.framework in Copy Files */,
 			);
@@ -1071,7 +1071,7 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		29B97314FDCFA39411CA2CEA = {
+		29B97314FDCFA39411CA2CEA /* Fuse */ = {
 			isa = PBXGroup;
 			children = (
 				FE8E3FE12FDB108A009FDB81 /* FuseQLThumbnail.appex */,
@@ -1988,7 +1988,7 @@
 				French,
 				German,
 			);
-			mainGroup = 29B97314FDCFA39411CA2CEA;
+			mainGroup = 29B97314FDCFA39411CA2CEA /* Fuse */;
 			packageReferences = (
 				FE8E3FDD2FDAE9CA009FDB81 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
@@ -2124,7 +2124,8 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "make\n";
+			shellScript = "make
+";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -2406,7 +2407,7 @@
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = 48UV5KV3FB;
@@ -2448,7 +2449,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = .;
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MARKETING_VERSION = "1.8.0-fusex-0.5";
+				MARKETING_VERSION = "1.8.0-fusex-0.6";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "";
 				OTHER_LDFLAGS = (
@@ -2479,7 +2480,7 @@
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = 48UV5KV3FB;
@@ -2520,7 +2521,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = .;
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MARKETING_VERSION = "1.8.0-fusex-0.5";
+				MARKETING_VERSION = "1.8.0-fusex-0.6";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "";
 				OTHER_LDFLAGS = (
@@ -2550,7 +2551,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = 48UV5KV3FB;
@@ -2591,7 +2592,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = .;
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MARKETING_VERSION = "1.8.0-fusex-0.5";
+				MARKETING_VERSION = "1.8.0-fusex-0.6";
 				OTHER_CFLAGS = "";
 				OTHER_CODE_SIGN_FLAGS = "";
 				OTHER_LDFLAGS = (

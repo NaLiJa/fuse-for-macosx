@@ -20,7 +20,7 @@ dnl E-mail: philip-fuse@shadowmagic.org.uk
 
 dnl Package version (user-visible: tarballs, fuse --version, NSIS text).
 dnl Keep README, man/fuse.1 (.TH third field), metainfo.xml, and fusepb MARKETING_VERSION in sync.
-m4_define([fuse_version], [1.8.0-fusex-0.5])
+m4_define([fuse_version], [1.8.0-fusex-0.6])
 
 dnl Win32 FILEVERSION / NSIS VIProductVersion require four integers only; map fusex-0.1 -> fourth field 1.
 m4_define([fuse_major_version], [1])

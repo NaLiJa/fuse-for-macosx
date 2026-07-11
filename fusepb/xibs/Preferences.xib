@@ -156,9 +156,9 @@
                     </connections>
                 </button>
                 <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="NNe-bG-amc">
-                    <rect key="frame" x="264" y="262" width="112" height="17"/>
+                    <rect key="frame" x="243" y="262" width="133" height="17"/>
                     <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                    <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="Emulation speed:" id="BoH-kb-bUl">
+                    <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="Emulation speed, %:" id="BoH-kb-bUl">
                         <font key="font" metaFont="system"/>
                         <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                         <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
@@ -177,9 +177,8 @@
                     <rect key="frame" x="382" y="260" width="116" height="22"/>
                     <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                     <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" drawsBackground="YES" id="8Rf-5o-m5G">
-                        <numberFormatter key="formatter" formatterBehavior="10_0" positiveFormat="#,##0%" negativeFormat="-#,##0.00" thousandSeparator="," id="jTc-rQ-dSN" customClass="NumberFormatter">
+                        <numberFormatter key="formatter" formatterBehavior="default10_4" positiveFormat="#0" negativeFormat="#0" usesGroupingSeparator="NO" minimumIntegerDigits="1" id="jTc-rQ-dSN" customClass="NumberFormatter">
                             <real key="minimum" value="1"/>
-                            <decimal key="maximum" value="NaN"/>
                         </numberFormatter>
                         <font key="font" metaFont="system"/>
                         <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
@@ -391,9 +390,9 @@
                     <rect key="frame" x="270" y="28" width="170" height="22"/>
                     <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                     <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" drawsBackground="YES" id="fK9-QT-Ywo">
-                        <numberFormatter key="formatter" formatterBehavior="default10_4" numberStyle="decimal" minimumIntegerDigits="1" maximumIntegerDigits="309" maximumFractionDigits="3" id="cVi-iS-b2v" customClass="NumberFormatter">
+                        <numberFormatter key="formatter" formatterBehavior="default10_4" positiveFormat="#0" negativeFormat="#0" usesGroupingSeparator="NO" minimumIntegerDigits="1" id="cVi-iS-b2v" customClass="NumberFormatter">
                             <real key="minimum" value="1"/>
-                            <real key="maximum" value="50"/>
+                            <real key="maximum" value="65535"/>
                         </numberFormatter>
                         <font key="font" metaFont="system"/>
                         <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>

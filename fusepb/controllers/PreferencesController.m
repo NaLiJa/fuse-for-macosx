@@ -267,6 +267,8 @@ static BOOL appTerminating = NO;
     [Emulator endROMScopedAccess:romURLs];
   }
 
+  [[DisplayOpenGLView instance] applyTitlebarStyle];
+
   // B&W TV status may have changed
   display_refresh_all();
 

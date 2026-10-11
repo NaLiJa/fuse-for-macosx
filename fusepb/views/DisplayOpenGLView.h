@@ -84,6 +84,7 @@
 +(DisplayOpenGLView *) instance;
 
 -(IBAction) zoom:(id)sender;
+-(void) applyTitlebarStyle;
 
 -(void) createTexture:(Cocoa_Texture*)newScreen;
 -(void) destroyTexture;

@@ -348,6 +348,17 @@
                         </subviews>
                     </view>
                 </box>
+                <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="TTb-ar-001">
+                    <rect key="frame" x="419" y="42" width="214" height="18"/>
+                    <autoresizingMask key="autoresizingMask"/>
+                    <buttonCell key="cell" type="check" title="Transparent titlebar" bezelStyle="regularSquare" imagePosition="left" alignment="left" inset="2" id="TTb-ar-002">
+                        <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                        <font key="font" metaFont="system"/>
+                    </buttonCell>
+                    <connections>
+                        <binding destination="270" name="value" keyPath="values.transparenttitlebar" id="TTb-ar-003"/>
+                    </connections>
+                </button>
                 <button fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="1359">
                     <rect key="frame" x="419" y="82" width="168" height="18"/>
                     <autoresizingMask key="autoresizingMask"/>

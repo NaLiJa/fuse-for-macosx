@@ -351,6 +351,37 @@ static DisplayOpenGLView *instance = nil;
   return YES;
 }
 
+/* Read straight from the defaults: this runs from the nib load, before the
+   emulator thread has populated settings_current. */
+-(void) applyTitlebarStyle
+{
+  NSWindow *window = [self window];
+  BOOL transparent = [[NSUserDefaults standardUserDefaults]
+                       boolForKey:@"transparenttitlebar"];
+  NSWindowStyleMask mask = [window styleMask];
+
+  /* Let the display extend under a transparent titlebar so only the
+     traffic-light buttons remain visible over the Spectrum border. */
+  if( transparent ) {
+    mask |= NSWindowStyleMaskFullSizeContentView;
+  } else {
+    mask &= ~NSWindowStyleMaskFullSizeContentView;
+  }
+  [window setStyleMask:mask];
+  [window setTitlebarAppearsTransparent:transparent];
+  [window setTitleVisibility:transparent ? NSWindowTitleHidden
+                                         : NSWindowTitleVisible];
+
+  /* The restored or previous frame was sized for the other titlebar style,
+     so its content area is no longer 4:3. */
+  if( !( [window styleMask] & NSWindowStyleMaskFullScreen ) ) {
+    NSRect frame = [window frame];
+    NSSize content = [window contentRectForFrameRect:frame].size;
+    [window setContentSize:NSMakeSize(content.width, content.width * 3. / 4.)];
+    [window setFrameTopLeftPoint:NSMakePoint(NSMinX(frame), NSMaxY(frame))];
+  }
+}
+
 -(void) awakeFromNib
 {
   /* keep the window in the standard aspect ratio if the user resizes */
@@ -362,6 +393,8 @@ static DisplayOpenGLView *instance = nil;
   [[self window] setCollectionBehavior:
     [[self window] collectionBehavior] |
     NSWindowCollectionBehaviorFullScreenPrimary];
+
+  [self applyTitlebarStyle];
 
   view_lock = [[NSLock alloc] init];
 }

@@ -57,6 +57,7 @@ snet, string, NULL
 confirm_actions, boolean, 1
 printer, boolean, 0
 statusbar, boolean, 0
+transparent_titlebar, boolean, 0
 interface1, boolean, 0
 mdr_len, numeric, 180
 mdr_random_len, boolean, 0

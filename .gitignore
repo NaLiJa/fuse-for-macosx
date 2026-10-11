@@ -111,6 +111,14 @@ tags
 /z80/z80_ed.c
 build
 project.xcworkspace
+# Xcode Cloud requires the shared Swift package lockfile in source control.
+!/fusepb/FuseX.xcodeproj/project.xcworkspace/
+/fusepb/FuseX.xcodeproj/project.xcworkspace/*
+!/fusepb/FuseX.xcodeproj/project.xcworkspace/xcshareddata/
+/fusepb/FuseX.xcodeproj/project.xcworkspace/xcshareddata/*
+!/fusepb/FuseX.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+/fusepb/FuseX.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
+!/fusepb/FuseX.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 xcuserdata
 /fusepb/options.h
 /fusepb/options.m

@@ -159,6 +159,7 @@ libspectrum:
 
 # --without-png keeps the Homebrew libpng out; every remaining dependency is a
 # system library, so the bundle is loadable wherever it is installed.
+# Override Xcode's inherited YACC: Automake's ylwrap expects yacc output names.
 libfusex: libspectrum
 	@echo "Building libfusex..."
 	# Autotools VPATH can reuse in-tree Windows objects as macOS dependencies.
@@ -168,6 +169,7 @@ libfusex: libspectrum
 	@mkdir -p $(LIBFUSEX_BUILD_DIR)
 	cd $(LIBFUSEX_BUILD_DIR) && \
 	PKG_CONFIG_PATH="$(LIBSPECTRUM_PREFIX)/lib/pkgconfig" \
+	YACC="/usr/bin/bison -y" \
 	CFLAGS="$(ARCH_FLAGS)" CPPFLAGS= LDFLAGS="$(ARCH_FLAGS)" $(CURDIR)/configure --with-null-ui --without-pthread \
 		--with-audio-driver=null --without-png && \
 	$(MAKE)

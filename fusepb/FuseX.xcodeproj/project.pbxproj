@@ -371,7 +371,7 @@
 		FE9913030000000000000003 /* wav_macos.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9913040000000000000004 /* wav_macos.c */; };
 		FE9913050000000000000005 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FE9913060000000000000006 /* AudioToolbox.framework */; };
 		FE9A0101301F000000000001 /* http_downloader.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9A0102301F000000000001 /* http_downloader.c */; };
-		FEC02C952EEF06E4008277BA /* FuseImporter.mdimporter in CopyFiles */ = {isa = PBXBuildFile; fileRef = FEC02C942EEF06E4008277BA /* FuseImporter.mdimporter */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		FEC02C952EEF06E4008277BA /* FuseImporter.mdimporter in CopyFiles */ = {isa = PBXBuildFile; fileRef = FEC02C942EEF06E4008277BA /* FuseImporter.mdimporter */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FEC02C9F2EEF65D6008277BA /* spectranext_controller.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC02C9C2EEF65D5008277BA /* spectranext_controller.c */; };
 		FEC02CA02EEF65D6008277BA /* spectranext.h in Sources */ = {isa = PBXBuildFile; fileRef = FEC02C9D2EEF65D5008277BA /* spectranext.h */; };
 		FEC02CA12EEF65D6008277BA /* spectranext_controller.h in Sources */ = {isa = PBXBuildFile; fileRef = FEC02C9E2EEF65D6008277BA /* spectranext_controller.h */; };

@@ -31,8 +31,10 @@
 #include "infrastructure/startup_manager.h"
 #include "machine.h"
 #include "display.h"
+#include "display_internal.h"
 #include "memory_pages.h"
 #include "peripherals/scld.h"
+#include "peripherals/ulaplus.h"
 #include "rectangle.h"
 #include "settings.h"
 
@@ -60,13 +62,13 @@ libspectrum_dword display_get_maybe_dirty( int y );
 /* Various "mocks" for the UI code */
 
 typedef void (*plot8_fn_t)( int x, int y, libspectrum_byte data,
-                            libspectrum_byte ink, libspectrum_byte paper );
+                            libspectrum_word ink, libspectrum_word paper );
 
 static plot8_fn_t plot8_fn;
 
 static void
-plot8_null( int x, int y, libspectrum_byte data, libspectrum_byte ink,
-            libspectrum_byte paper )
+plot8_null( int x, int y, libspectrum_byte data, libspectrum_word ink,
+            libspectrum_word paper )
 {
   /* Do nothing */
 }
@@ -77,15 +79,15 @@ struct plot8_record_t {
   int x;
   int y;
   libspectrum_byte data;
-  libspectrum_byte ink;
-  libspectrum_byte paper;
+  libspectrum_word ink;
+  libspectrum_word paper;
 };
 
 static struct plot8_record_t plot8_last_write;
 
 static void
-plot8_count_fn( int x, int y, libspectrum_byte data, libspectrum_byte ink,
-                libspectrum_byte paper )
+plot8_count_fn( int x, int y, libspectrum_byte data, libspectrum_word ink,
+                libspectrum_word paper )
 {
   plot8_count++;
   plot8_last_write.x = x;
@@ -97,7 +99,7 @@ plot8_count_fn( int x, int y, libspectrum_byte data, libspectrum_byte ink,
 
 static int
 plot8_assert( int count, int x, int y, libspectrum_byte data,
-              libspectrum_byte ink, libspectrum_byte paper )
+              libspectrum_word ink, libspectrum_word paper )
 {
   if( plot8_count != count ) {
     fprintf( stderr, "plot8_count: expected %d, got %d\n",
@@ -133,10 +135,27 @@ plot8_assert( int count, int x, int y, libspectrum_byte data,
   return 0;
 }
 
+/* ULA+ mocks */
+
+static int ulaplus_enabled;
+static libspectrum_byte ulaplus_palette[ ULAPLUS_PALETTE_SIZE ];
+
+int
+ulaplus_is_enabled( void )
+{
+  return ulaplus_enabled;
+}
+
+libspectrum_byte
+ulaplus_get_colour( int entry )
+{
+  return ulaplus_palette[ entry ];
+}
+
 /* Vector off to the "plot8" implementation for the current test */
 void
-uidisplay_plot8( int x, int y, libspectrum_byte data, libspectrum_byte ink,
-                 libspectrum_byte paper )
+uidisplay_plot8( int x, int y, libspectrum_byte data, libspectrum_word ink,
+                 libspectrum_word paper )
 {
   plot8_fn( x, y, data, ink, paper );
 }
@@ -269,6 +288,11 @@ create_fake_machine( void )
 static void
 test_before( void )
 {
+  int i;
+
+  scld_last_dec.byte = 0;
+  memory_current_screen = 0;
+  ulaplus_enabled = 0;
   memset( RAM[0], 0, ARRAY_SIZE( RAM[0] ) );
   memset( display_last_screen, 0, sizeof( display_last_screen ) );
   display_clear_maybe_dirty();
@@ -290,6 +314,10 @@ test_before( void )
   write_if_dirty_count = 0;
   write_if_dirty_last_x = -1;
   write_if_dirty_last_y = -1;
+
+  for( i = 0; i < ULAPLUS_PALETTE_SIZE; i++ )
+    ulaplus_palette[i] = (libspectrum_byte)( i * 3 + 1 );
+  memset( display_last_colours, 0, sizeof( display_last_colours ) );
 }
 
 static void
@@ -940,6 +968,577 @@ timex_hires_plot16_called_with_correct_data( void )
 
 typedef int (*test_fn_t)( void );
 
+static int
+colour_to_rgb( void )
+{
+  libspectrum_byte red, green, blue;
+
+  /* The standard colours */
+  display_colour_to_rgb( 0, &red, &green, &blue );
+  if( red != 0 || green != 0 || blue != 0 ) return 1;
+  display_colour_to_rgb( 2, &red, &green, &blue );
+  if( red != 192 || green != 0 || blue != 0 ) return 1;
+  display_colour_to_rgb( 15, &red, &green, &blue );
+  if( red != 255 || green != 255 || blue != 255 ) return 1;
+
+  /* ULA+ colours: black, white, and each channel on its own */
+  display_colour_to_rgb( DISPLAY_ULAPLUS_BASE + 0x00, &red, &green, &blue );
+  if( red != 0 || green != 0 || blue != 0 ) return 1;
+  display_colour_to_rgb( DISPLAY_ULAPLUS_BASE + 0xff, &red, &green, &blue );
+  if( red != 255 || green != 255 || blue != 255 ) return 1;
+  display_colour_to_rgb( DISPLAY_ULAPLUS_BASE + 0x1c, &red, &green, &blue );
+  if( red != 255 || green != 0 || blue != 0 ) return 1;
+  display_colour_to_rgb( DISPLAY_ULAPLUS_BASE + 0xe0, &red, &green, &blue );
+  if( red != 0 || green != 255 || blue != 0 ) return 1;
+  display_colour_to_rgb( DISPLAY_ULAPLUS_BASE + 0x03, &red, &green, &blue );
+  if( red != 0 || green != 0 || blue != 255 ) return 1;
+
+  /* Intermediate levels of 3 bit and 2 bit channels */
+  display_colour_to_rgb( DISPLAY_ULAPLUS_BASE + 0x92, &red, &green, &blue );
+  if( red != 145 || green != 145 || blue != 170 ) return 1;
+
+  if( DISPLAY_COLOURS != 272 ) return 1;
+
+  return 0;
+}
+
+static int
+nearest_standard_colour( void )
+{
+  int colour;
+
+  /* A standard colour is its own nearest */
+  for( colour = 0; colour < DISPLAY_STANDARD_COLOURS; colour++ )
+    if( display_nearest_standard_colour( colour ) != colour ) return 1;
+
+  /* Black is nearer to the normal black than to the bright black */
+  if( display_nearest_standard_colour( DISPLAY_ULAPLUS_BASE + 0x00 ) != 0 )
+    return 1;
+  if( display_nearest_standard_colour( DISPLAY_ULAPLUS_BASE + 0xff ) != 15 )
+    return 1;
+  if( display_nearest_standard_colour( DISPLAY_ULAPLUS_BASE + 0x1c ) != 10 )
+    return 1;
+  if( display_nearest_standard_colour( DISPLAY_ULAPLUS_BASE + 0xe0 ) != 12 )
+    return 1;
+  if( display_nearest_standard_colour( DISPLAY_ULAPLUS_BASE + 0x03 ) != 9 )
+    return 1;
+  if( display_nearest_standard_colour( DISPLAY_ULAPLUS_BASE + 0x92 ) != 7 )
+    return 1;
+
+  /* Every colour has a standard colour for an answer */
+  for( colour = 0; colour < DISPLAY_COLOURS; colour++ ) {
+    int nearest = display_nearest_standard_colour( colour );
+    if( nearest < 0 || nearest >= DISPLAY_STANDARD_COLOURS ) return 1;
+  }
+
+  return 0;
+}
+
+/* The plot call carries colours of 256 and more without truncating them */
+static int
+plot8_wide_colours( void )
+{
+  uidisplay_plot8( 3, 4, 0x5a, 255, 256 );
+  if( plot8_assert( 1, 3, 4, 0x5a, 255, 256 ) ) return 1;
+
+  uidisplay_plot8( 3, 4, 0xa5, DISPLAY_COLOURS - 1, DISPLAY_ULAPLUS_BASE );
+  if( plot8_assert( 2, 3, 4, 0xa5, DISPLAY_COLOURS - 1,
+                    DISPLAY_ULAPLUS_BASE ) ) return 1;
+
+  return 0;
+}
+
+/* The attribute selects the colour lookup table with its flash and bright
+   bits, and ink and paper index into it */
+static int
+ulaplus_attribute_selects_clut( void )
+{
+  int clut;
+
+  ulaplus_enabled = 1;
+
+  for( clut = 0; clut < 4; clut++ ) {
+    libspectrum_byte attr = ( clut << 6 ) | ( 5 << 3 ) | 3;
+
+    RAM[0][0] = 0xa5;
+    RAM[0][DISPLAY_PIXEL_BYTES] = attr;
+    display_last_screen[ 964 ] = 0;
+    display_last_colours[ 964 ] = 0;
+    plot8_count = 0;
+
+    display_write_if_dirty_sinclair( 0, 0 );
+
+    if( plot8_assert( 1, 4, 24, 0xa5,
+                      DISPLAY_ULAPLUS_BASE + ulaplus_palette[ clut * 16 + 3 ],
+                      DISPLAY_ULAPLUS_BASE +
+                        ulaplus_palette[ clut * 16 + 8 + 5 ] ) )
+      return 1;
+  }
+
+  return 0;
+}
+
+static int
+ulaplus_no_write_if_unchanged( void )
+{
+  ulaplus_enabled = 1;
+  RAM[0][0] = 0x01;
+  RAM[0][DISPLAY_PIXEL_BYTES] = 0x4a;
+
+  display_write_if_dirty_sinclair( 0, 0 );
+  if( plot8_count != 1 ) return 1;
+
+  display_write_if_dirty_sinclair( 0, 0 );
+  if( plot8_count != 1 ) return 1;
+
+  return 0;
+}
+
+/* Only a change to an entry the cell uses redraws it */
+static int
+ulaplus_write_if_palette_changed( void )
+{
+  ulaplus_enabled = 1;
+  RAM[0][0] = 0x01;
+  RAM[0][DISPLAY_PIXEL_BYTES] = 0x4a;    /* bright, paper 1, ink 2 */
+
+  display_write_if_dirty_sinclair( 0, 0 );
+  if( plot8_count != 1 ) return 1;
+
+  ulaplus_palette[ 16 + 5 ] = 0x77;
+  display_write_if_dirty_sinclair( 0, 0 );
+  if( plot8_count != 1 ) return 1;
+
+  ulaplus_palette[ 16 + 2 ] = 0x77;
+  display_write_if_dirty_sinclair( 0, 0 );
+  if( plot8_assert( 2, 4, 24, 0x01, DISPLAY_ULAPLUS_BASE + 0x77,
+                    DISPLAY_ULAPLUS_BASE + ulaplus_palette[ 16 + 9 ] ) )
+    return 1;
+
+  ulaplus_palette[ 16 + 9 ] = 0x66;
+  display_write_if_dirty_sinclair( 0, 0 );
+  if( plot8_assert( 3, 4, 24, 0x01, DISPLAY_ULAPLUS_BASE + 0x77,
+                    DISPLAY_ULAPLUS_BASE + 0x66 ) ) return 1;
+
+  return 0;
+}
+
+/* Switching the mode redraws a cell drawn in the other mode */
+static int
+ulaplus_write_if_mode_switched( void )
+{
+  RAM[0][0] = 0x01;
+  RAM[0][DISPLAY_PIXEL_BYTES] = 0x02;
+
+  display_write_if_dirty_sinclair( 0, 0 );
+  if( plot8_assert( 1, 4, 24, 0x01, 2, 0 ) ) return 1;
+
+  ulaplus_enabled = 1;
+  display_write_if_dirty_sinclair( 0, 0 );
+  if( plot8_count != 2 ) return 1;
+  if( plot8_last_write.ink < DISPLAY_ULAPLUS_BASE ) return 1;
+
+  ulaplus_enabled = 0;
+  display_write_if_dirty_sinclair( 0, 0 );
+  if( plot8_assert( 3, 4, 24, 0x01, 2, 0 ) ) return 1;
+
+  return 0;
+}
+
+/* The flash attribute bit neither reverses the colours nor dirties cells */
+static int
+ulaplus_flash_does_not_flash( void )
+{
+  libspectrum_byte attr = 0x80 | ( 6 << 3 ) | 1;
+  int y;
+
+  ulaplus_enabled = 1;
+  RAM[0][0] = 0x80;
+  RAM[0][DISPLAY_PIXEL_BYTES] = attr;
+
+  display_set_flash_reversed( 1 );
+  display_write_if_dirty_sinclair( 0, 0 );
+  if( plot8_assert( 1, 4, 24, 0x80,
+                    DISPLAY_ULAPLUS_BASE + ulaplus_palette[ 32 + 1 ],
+                    DISPLAY_ULAPLUS_BASE + ulaplus_palette[ 32 + 8 + 6 ] ) )
+    return 1;
+
+  display_set_flash_reversed( 0 );
+  display_write_if_dirty_sinclair( 0, 0 );
+  if( plot8_count != 1 ) return 1;
+
+  display_clear_maybe_dirty();
+  display_dirty_flashing();
+  for( y = 0; y < DISPLAY_HEIGHT; y++ )
+    if( display_get_maybe_dirty( y ) ) return 1;
+
+  return 0;
+}
+
+static int
+ulaplus_getpixel( void )
+{
+  ulaplus_enabled = 1;
+  RAM[0][0] = 0xa0;
+  RAM[0][DISPLAY_PIXEL_BYTES] = 0x4a;
+
+  display_write_if_dirty_sinclair( 0, 0 );
+
+  /* Column 4 of the display starts at pixel 32 */
+  if( display_getpixel( 32, 24 ) !=
+      DISPLAY_ULAPLUS_BASE + ulaplus_palette[ 16 + 2 ] ) return 1;
+  if( display_getpixel( 33, 24 ) !=
+      DISPLAY_ULAPLUS_BASE + ulaplus_palette[ 16 + 9 ] ) return 1;
+  if( display_getpixel( 34, 24 ) !=
+      DISPLAY_ULAPLUS_BASE + ulaplus_palette[ 16 + 2 ] ) return 1;
+
+  return 0;
+}
+
+/* The colour as the screen shows it */
+static int
+colour_to_tv_rgb( void )
+{
+  libspectrum_byte red, green, blue;
+
+  settings_current.bw_tv = 0;
+  display_colour_to_tv_rgb( 10, &red, &green, &blue );
+  if( red != 255 || green != 0 || blue != 0 ) return 1;
+  display_colour_to_tv_rgb( DISPLAY_ULAPLUS_BASE + 0xe0, &red, &green, &blue );
+  if( red != 0 || green != 255 || blue != 0 ) return 1;
+
+  /* Black and white TV: every channel the same, by luminance */
+  settings_current.bw_tv = 1;
+  display_colour_to_tv_rgb( 15, &red, &green, &blue );
+  if( red != 255 || green != 255 || blue != 255 ) return 1;
+  display_colour_to_tv_rgb( 0, &red, &green, &blue );
+  if( red != 0 || green != 0 || blue != 0 ) return 1;
+  display_colour_to_tv_rgb( DISPLAY_ULAPLUS_BASE + 0xe0, &red, &green, &blue );
+  if( red != green || green != blue || red != 150 ) return 1;
+  display_colour_to_tv_rgb( 2, &red, &green, &blue );
+  if( red != 57 || green != 57 || blue != 57 ) return 1;
+  settings_current.bw_tv = 0;
+
+  return 0;
+}
+
+/* A cell of the 16 colour Pentagon display has pixels in every bit of the
+   word, including the one that marks a ULA+ cell */
+static int
+getpixel_in_16_colour_mode_ignores_marker( void )
+{
+  display_write_if_dirty = display_write_if_dirty_pentagon_16_col;
+  display_last_screen[ 964 ] = 0x02001002;
+  display_last_colours[ 964 ] = 0;
+
+  /* The attribute byte 0x10 has paper 2, and the pixel byte 0x02 is clear in
+     the first bit */
+  if( display_getpixel( 32, 24 ) != 2 ) return 1;
+
+  return 0;
+}
+
+/* A palette change draws the cells the beam has passed with the old palette
+   and leaves the ones it has not reached to be drawn with the new */
+static int
+palette_changed_draws_passed_cells_first( void )
+{
+  /* The beam is at the start of the second line */
+  tstates = (TOP_BORDER + 1) * LINE_TIME;
+  ulaplus_enabled = 1;
+  RAM[0][0] = 0x80;
+  RAM[0][DISPLAY_PIXEL_BYTES] = 0x0a;    /* paper 1, ink 2 */
+  display_set_maybe_dirty( 0, 0x01 );
+
+  display_palette_changed();
+
+  if( plot8_assert( 1, 4, 24, 0x80, DISPLAY_ULAPLUS_BASE + ulaplus_palette[2],
+                    DISPLAY_ULAPLUS_BASE + ulaplus_palette[9] ) )
+    return 1;
+  if( display_get_maybe_dirty( 0 ) ) return 1;
+
+  return 0;
+}
+
+static int
+palette_changed_marks_cells_from_beam( void )
+{
+  int y;
+
+  /* The beam is in column 10 of the second line */
+  tstates = (TOP_BORDER + 1) * LINE_TIME + ( DISPLAY_BORDER_WIDTH_COLS + 10 ) * 4;
+  ulaplus_enabled = 1;
+
+  display_palette_changed();
+
+  if( display_get_maybe_dirty( 0 ) ) return 1;
+  if( display_get_maybe_dirty( 1 ) != 0xfffffc00 ) {
+    fprintf( stderr, "maybe_dirty(1): expected 0xfffffc00, got 0x%x\n",
+             display_get_maybe_dirty( 1 ) );
+    return 1;
+  }
+  for( y = 2; y < DISPLAY_HEIGHT; y++ )
+    if( display_get_maybe_dirty( y ) != 0xffffffff ) return 1;
+
+  return 0;
+}
+
+/* The drawing of passed cells only moves forwards: when the T-state has been
+   set back, as when a snapshot is loaded, a palette change draws nothing */
+static int
+palette_changed_with_beam_behind_critical_region( void )
+{
+  /* Advance the critical region to line 100 */
+  tstates = ( TOP_BORDER + 100 ) * LINE_TIME;
+  display_dirty_sinclair( 0x0000 );
+
+  display_set_maybe_dirty( 100, 1 << 5 );
+  ulaplus_enabled = 1;
+
+  tstates = ( TOP_BORDER + 10 ) * LINE_TIME;
+  display_palette_changed();
+
+  if( plot8_count || plot8_count ) return 1;
+
+  return 0;
+}
+
+static int
+palette_changed_at_end_of_screen_marks_nothing( void )
+{
+  int y;
+
+  tstates = ( TOP_BORDER + DISPLAY_HEIGHT + 1 ) * LINE_TIME;
+  ulaplus_enabled = 1;
+
+  display_palette_changed();
+
+  for( y = 0; y < DISPLAY_HEIGHT; y++ )
+    if( display_get_maybe_dirty( y ) ) return 1;
+
+  return 0;
+}
+
+/* The next frame compares every cell with the palette then in force */
+static int
+palette_changed_dirties_next_frame( void )
+{
+  int y;
+
+  tstates = ( TOP_BORDER + DISPLAY_HEIGHT + 1 ) * LINE_TIME;
+  ulaplus_enabled = 1;
+
+  display_frame();
+  for( y = 0; y < DISPLAY_HEIGHT; y++ )
+    if( display_get_maybe_dirty( y ) ) return 1;
+
+  display_palette_changed();
+  display_frame();
+  for( y = 0; y < DISPLAY_HEIGHT; y++ )
+    if( display_get_maybe_dirty( y ) != 0xffffffff ) return 1;
+
+  /* The refresh happens once */
+  display_clear_maybe_dirty();
+  display_frame();
+  for( y = 0; y < DISPLAY_HEIGHT; y++ )
+    if( display_get_maybe_dirty( y ) ) return 1;
+
+  return 0;
+}
+
+/* The cell of the screen display at ( column, line ), border included */
+#define CELL( column, line ) ( (column) + (line) * DISPLAY_SCREEN_WIDTH_COLS )
+
+/* The colours of a ULA+ cell: the palette entries as colour indexes */
+#define COLOURS( ink_entry, paper_entry ) \
+  ( ( (libspectrum_dword)( DISPLAY_ULAPLUS_BASE + ulaplus_palette[ ink_entry ] ) << 16 ) | \
+    ( DISPLAY_ULAPLUS_BASE + ulaplus_palette[ paper_entry ] ) )
+
+static int
+ulaplus_border_uses_palette( void )
+{
+  /* The change lands in the 5th pixel of the 26th column of the third line */
+  tstates = 2 * LINE_TIME + 100;
+  ulaplus_enabled = 1;
+
+  display_set_lores_border( 3 );
+  display_frame();
+
+  /* Before the change: the standard border colour */
+  if( display_last_screen[ CELL( 0, 0 ) ] & DISPLAY_LAST_SCREEN_ULAPLUS )
+    return 1;
+  if( display_last_screen[ CELL( 24, 2 ) ] & DISPLAY_LAST_SCREEN_ULAPLUS )
+    return 1;
+
+  /* After it: entry 8 + 3 of the palette */
+  if( display_last_screen[ CELL( 26, 2 ) ] != DISPLAY_LAST_SCREEN_ULAPLUS ||
+      display_last_colours[ CELL( 26, 2 ) ] != COLOURS( 11, 11 ) ) return 1;
+  if( display_last_screen[ CELL( 0, 3 ) ] != DISPLAY_LAST_SCREEN_ULAPLUS ||
+      display_last_colours[ CELL( 0, 3 ) ] != COLOURS( 11, 11 ) ) return 1;
+  if( display_getpixel( 26 * 8, 2 ) != DISPLAY_ULAPLUS_BASE + ulaplus_palette[11] )
+    return 1;
+
+  /* The cell the change falls in has the standard colour on its left and the
+     palette colour on its right */
+  if( display_last_screen[ CELL( 25, 2 ) ] !=
+        ( DISPLAY_LAST_SCREEN_ULAPLUS | 0x0f ) ||
+      display_last_colours[ CELL( 25, 2 ) ] !=
+        ( (libspectrum_dword)( DISPLAY_ULAPLUS_BASE + ulaplus_palette[11] ) << 16 ) )
+    return 1;
+  if( display_getpixel( 25 * 8 + 3, 2 ) != 0 ) return 1;
+  if( display_getpixel( 25 * 8 + 4, 2 ) != DISPLAY_ULAPLUS_BASE + ulaplus_palette[11] )
+    return 1;
+
+  return 0;
+}
+
+/* A change within a cell is drawn with the colour on each side of it */
+static int
+ulaplus_border_changes_within_a_cell( void )
+{
+  tstates = 2 * LINE_TIME + 100;
+  ulaplus_enabled = 1;
+
+  display_set_lores_border( 3 );
+  display_frame();
+
+  /* The new change is at pixel 212, the 5th of column 26 */
+  tstates = 2 * LINE_TIME + 104;
+  display_set_lores_border( 5 );
+  display_frame();
+
+  if( display_last_screen[ CELL( 26, 2 ) ] !=
+        ( DISPLAY_LAST_SCREEN_ULAPLUS | 0x0f ) ||
+      display_last_colours[ CELL( 26, 2 ) ] != COLOURS( 13, 11 ) ) return 1;
+  if( display_getpixel( 26 * 8 + 3, 2 ) != DISPLAY_ULAPLUS_BASE + ulaplus_palette[11] ||
+      display_getpixel( 26 * 8 + 4, 2 ) != DISPLAY_ULAPLUS_BASE + ulaplus_palette[13] )
+    return 1;
+  if( display_last_colours[ CELL( 25, 2 ) ] != COLOURS( 11, 11 ) ) return 1;
+  if( display_last_colours[ CELL( 27, 2 ) ] != COLOURS( 13, 13 ) ) return 1;
+
+  return 0;
+}
+
+/* A change to the palette entry of the border colour shows from the beam */
+static int
+ulaplus_border_follows_palette_change( void )
+{
+  libspectrum_byte old_colour;
+
+  tstates = 0;
+  ulaplus_enabled = 1;
+  display_set_lores_border( 3 );
+  old_colour = ulaplus_palette[11];
+
+  /* An unrelated entry changes nothing */
+  tstates = 2 * LINE_TIME + 100;
+  ulaplus_palette[12] = 0x55;
+  display_border_recheck();
+
+  ulaplus_palette[11] = 0x77;
+  display_border_recheck();
+  display_frame();
+
+  if( display_last_colours[ CELL( 1, 0 ) ] !=
+        ( ( (libspectrum_dword)( DISPLAY_ULAPLUS_BASE + old_colour ) << 16 ) |
+          ( DISPLAY_ULAPLUS_BASE + old_colour ) ) ) return 1;
+  if( display_last_colours[ CELL( 25, 2 ) ] !=
+        ( ( (libspectrum_dword)( DISPLAY_ULAPLUS_BASE + 0x77 ) << 16 ) |
+          ( DISPLAY_ULAPLUS_BASE + old_colour ) ) ) return 1;
+  if( display_last_colours[ CELL( 26, 2 ) ] !=
+        ( ( (libspectrum_dword)( DISPLAY_ULAPLUS_BASE + 0x77 ) << 16 ) |
+          ( DISPLAY_ULAPLUS_BASE + 0x77 ) ) ) return 1;
+  if( display_last_colours[ CELL( 39, 10 ) ] !=
+        ( ( (libspectrum_dword)( DISPLAY_ULAPLUS_BASE + 0x77 ) << 16 ) |
+          ( DISPLAY_ULAPLUS_BASE + 0x77 ) ) ) return 1;
+
+  return 0;
+}
+
+static int
+border_standard_when_ulaplus_off( void )
+{
+  tstates = 0;
+  display_set_lores_border( 3 );
+  display_frame();
+
+  if( display_last_screen[ CELL( 0, 3 ) ] & DISPLAY_LAST_SCREEN_ULAPLUS )
+    return 1;
+  if( display_getpixel( 0, 3 ) != 3 ) return 1;
+
+  return 0;
+}
+
+/* The 16 colour Pentagon display does not use the palette, nor does its
+   border */
+static int
+ulaplus_border_not_used_in_16_colour_mode( void )
+{
+  tstates = 0;
+  display_write_if_dirty = display_write_if_dirty_pentagon_16_col;
+  ulaplus_enabled = 1;
+
+  display_set_lores_border( 3 );
+  display_frame();
+
+  if( display_last_screen[ CELL( 0, 3 ) ] & DISPLAY_LAST_SCREEN_ULAPLUS )
+    return 1;
+  if( display_getpixel( 0, 3 ) != 3 ) return 1;
+
+  /* Back in the Sinclair mode the border uses the palette again */
+  display_write_if_dirty = display_write_if_dirty_sinclair;
+  display_border_recheck();
+  display_frame();
+  if( !( display_last_screen[ CELL( 0, 3 ) ] & DISPLAY_LAST_SCREEN_ULAPLUS ) )
+    return 1;
+
+  return 0;
+}
+
+/* Redrawing the screen picks up a change to the mode made outside a port
+   write, such as switching the peripheral off in the preferences */
+static int
+ulaplus_border_follows_refresh_all( void )
+{
+  tstates = 0;
+  display_set_lores_border( 3 );
+  display_frame();
+  if( display_last_screen[ CELL( 0, 3 ) ] & DISPLAY_LAST_SCREEN_ULAPLUS )
+    return 1;
+
+  ulaplus_enabled = 1;
+  display_refresh_all();
+  display_frame();
+  if( !( display_last_screen[ CELL( 0, 3 ) ] & DISPLAY_LAST_SCREEN_ULAPLUS ) )
+    return 1;
+
+  ulaplus_enabled = 0;
+  display_refresh_all();
+  display_frame();
+  if( display_last_screen[ CELL( 0, 3 ) ] & DISPLAY_LAST_SCREEN_ULAPLUS )
+    return 1;
+
+  return 0;
+}
+
+/* Switching to the 16 colour Pentagon display part way through a frame leaves
+   the border cells drawn from the palette readable */
+static int
+ulaplus_border_readable_after_display_switch( void )
+{
+  tstates = 0;
+  ulaplus_enabled = 1;
+  display_set_lores_border( 3 );
+  display_frame();
+
+  display_write_if_dirty = display_write_if_dirty_pentagon_16_col;
+
+  if( display_getpixel( 0, 3 ) != DISPLAY_ULAPLUS_BASE + ulaplus_palette[11] )
+    return 1;
+
+  return 0;
+}
+
 struct test_t {
   const char *name;
   test_fn_t fn;
@@ -1187,6 +1786,31 @@ static const struct test_t tests[] = {
     pentagon_page7_reads_correct_pages },
 
   /* display_parse_attr() tests */
+  { "colour_to_rgb", colour_to_rgb },
+  { "nearest_standard_colour", nearest_standard_colour },
+  { "plot8_wide_colours", plot8_wide_colours },
+
+  { "ulaplus_attribute_selects_clut", ulaplus_attribute_selects_clut },
+  { "ulaplus_no_write_if_unchanged", ulaplus_no_write_if_unchanged },
+  { "ulaplus_write_if_palette_changed", ulaplus_write_if_palette_changed },
+  { "ulaplus_write_if_mode_switched", ulaplus_write_if_mode_switched },
+  { "ulaplus_flash_does_not_flash", ulaplus_flash_does_not_flash },
+  { "ulaplus_getpixel", ulaplus_getpixel },
+  { "colour_to_tv_rgb", colour_to_tv_rgb },
+  { "getpixel_in_16_colour_mode_ignores_marker", getpixel_in_16_colour_mode_ignores_marker },
+  { "palette_changed_draws_passed_cells_first", palette_changed_draws_passed_cells_first },
+  { "palette_changed_marks_cells_from_beam", palette_changed_marks_cells_from_beam },
+  { "palette_changed_with_beam_behind_critical_region", palette_changed_with_beam_behind_critical_region },
+  { "palette_changed_at_end_of_screen_marks_nothing", palette_changed_at_end_of_screen_marks_nothing },
+  { "palette_changed_dirties_next_frame", palette_changed_dirties_next_frame },
+  { "ulaplus_border_uses_palette", ulaplus_border_uses_palette },
+  { "ulaplus_border_changes_within_a_cell", ulaplus_border_changes_within_a_cell },
+  { "ulaplus_border_follows_palette_change", ulaplus_border_follows_palette_change },
+  { "border_standard_when_ulaplus_off", border_standard_when_ulaplus_off },
+  { "ulaplus_border_not_used_in_16_colour_mode", ulaplus_border_not_used_in_16_colour_mode },
+  { "ulaplus_border_follows_refresh_all", ulaplus_border_follows_refresh_all },
+  { "ulaplus_border_readable_after_display_switch", ulaplus_border_readable_after_display_switch },
+
   { "parse_attr_ink_only", parse_attr_ink_only },
   { "parse_attr_paper_only", parse_attr_paper_only },
   { "parse_attr_bright", parse_attr_bright },

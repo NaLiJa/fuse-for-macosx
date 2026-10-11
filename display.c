@@ -47,6 +47,9 @@ int display_ui_initialised = 0;
 libspectrum_dword
   display_last_screen[ DISPLAY_SCREEN_WIDTH_COLS * DISPLAY_SCREEN_HEIGHT ];
 
+libspectrum_dword
+  display_last_colours[ DISPLAY_SCREEN_WIDTH_COLS * DISPLAY_SCREEN_HEIGHT ];
+
 /* Offsets as to where the data and the attributes for each pixel
    line start */
 libspectrum_word display_line_start[ DISPLAY_HEIGHT ];
@@ -173,9 +176,77 @@ display_refresh_all( void )
           DISPLAY_SCREEN_WIDTH_COLS * DISPLAY_SCREEN_HEIGHT
           * sizeof( libspectrum_dword ) );
 
+  /* The ULA+ mode, which may have changed, decides the border colour */
+  display_border_recheck();
+
 #ifndef DISPLAYTEST
   gdbserver_refresh_status();
 #endif
+}
+
+/* The standard colours as 8 bits per channel: black, then the normal colours,
+   black, then the bright colours */
+static const libspectrum_byte standard_rgb[ DISPLAY_STANDARD_COLOURS ][3] = {
+  {   0,   0,   0 }, {   0,   0, 192 }, { 192,   0,   0 }, { 192,   0, 192 },
+  {   0, 192,   0 }, {   0, 192, 192 }, { 192, 192,   0 }, { 192, 192, 192 },
+  {   0,   0,   0 }, {   0,   0, 255 }, { 255,   0,   0 }, { 255,   0, 255 },
+  {   0, 255,   0 }, {   0, 255, 255 }, { 255, 255,   0 }, { 255, 255, 255 },
+};
+
+void
+display_colour_to_rgb( int colour, libspectrum_byte *red,
+                       libspectrum_byte *green, libspectrum_byte *blue )
+{
+  if( colour < DISPLAY_ULAPLUS_BASE ) {
+    *red = standard_rgb[ colour ][0];
+    *green = standard_rgb[ colour ][1];
+    *blue = standard_rgb[ colour ][2];
+  } else {
+    int grb = colour - DISPLAY_ULAPLUS_BASE;
+
+    *red = ( ( grb >> 2 ) & 0x07 ) * 255 / 7;
+    *green = ( ( grb >> 5 ) & 0x07 ) * 255 / 7;
+    *blue = ( grb & 0x03 ) * 255 / 3;
+  }
+}
+
+void
+display_colour_to_tv_rgb( int colour, libspectrum_byte *red,
+                          libspectrum_byte *green, libspectrum_byte *blue )
+{
+  display_colour_to_rgb( colour, red, green, blue );
+
+  if( settings_current.bw_tv ) {
+    /* Addition of 0.5 is to avoid rounding errors */
+    libspectrum_byte grey =
+      ( 0.299 * *red + 0.587 * *green + 0.114 * *blue ) + 0.5;
+    *red = *green = *blue = grey;
+  }
+}
+
+int
+display_nearest_standard_colour( int colour )
+{
+  libspectrum_byte red, green, blue;
+  int i, nearest = 0, nearest_distance = -1;
+
+  if( colour < DISPLAY_ULAPLUS_BASE ) return colour;
+
+  display_colour_to_rgb( colour, &red, &green, &blue );
+
+  for( i = 0; i < DISPLAY_STANDARD_COLOURS; i++ ) {
+    int dr = red - standard_rgb[i][0];
+    int dg = green - standard_rgb[i][1];
+    int db = blue - standard_rgb[i][2];
+    int distance = dr * dr + dg * dg + db * db;
+
+    if( nearest_distance < 0 || distance < nearest_distance ) {
+      nearest = i;
+      nearest_distance = distance;
+    }
+  }
+
+  return nearest;
 }
 
 /* Fetch pixel (x, y). On a Timex this will be a point on a 640x480 canvas,
@@ -215,6 +286,19 @@ display_getpixel( int x, int y )
 
     data = display_last_screen[ index ] & 0xff;
     data2 = ( display_last_screen[ index ] & 0xff00 ) >> 8;
+
+    /* The 16 colour Pentagon display fills the whole word of the cells it
+       draws, so the marker means nothing in them. Border cells are not drawn
+       by the display function, so their marker always counts. */
+    if( ( display_last_screen[ index ] & DISPLAY_LAST_SCREEN_ULAPLUS ) &&
+        ( display_write_if_dirty == display_write_if_dirty_sinclair ||
+          column < DISPLAY_BORDER_WIDTH_COLS ||
+          column >= DISPLAY_BORDER_WIDTH_COLS + DISPLAY_WIDTH_COLS ||
+          y < DISPLAY_BORDER_HEIGHT ||
+          y >= DISPLAY_BORDER_HEIGHT + DISPLAY_HEIGHT ) ) {
+      libspectrum_dword colours = display_last_colours[ index ];
+      return ( data & mask ) ? colours >> 16 : colours & 0xffff;
+    }
 
     display_parse_attr( data2, &ink, &paper );
   }

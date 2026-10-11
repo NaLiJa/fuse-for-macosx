@@ -6,6 +6,9 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 cd "${CI_PRIMARY_REPOSITORY_PATH:?Xcode Cloud repository path is required}"
 
+# Generate sources before Xcode plans compilation in a clean checkout.
+make -C fusepb all
+
 # Use the same fixed output folders and universal binaries as local releases.
 # The app's embedding phases apply the final signing identity on copy.
 make -f Makefile.darwin 3rdparty \

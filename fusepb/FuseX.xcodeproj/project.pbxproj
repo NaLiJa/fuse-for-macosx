@@ -2286,11 +2286,21 @@
 			inputPaths = (
 			);
 			outputPaths = (
+				"$(SRCROOT)/settings.h",
+				"$(SRCROOT)/settings.m",
+				"$(SRCROOT)/settings_cocoa.h",
+				"$(SRCROOT)/options.h",
+				"$(SRCROOT)/options_cocoa.h",
+				"$(SRCROOT)/options.m",
+				"$(SRCROOT)/../z80/opcodes_base.c",
+				"$(SRCROOT)/../z80/z80_cb.c",
+				"$(SRCROOT)/../z80/z80_ddfd.c",
+				"$(SRCROOT)/../z80/z80_ddfdcb.c",
+				"$(SRCROOT)/../z80/z80_ed.c",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "make
-";
+			shellScript = "make -C \"${SRCROOT}\" all\n";
 		};
 		D1A55E0129C0F1A000185E4D /* Generate libspectrum.h */ = {
 			isa = PBXShellScriptBuildPhase;

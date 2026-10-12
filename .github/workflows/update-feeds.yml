@@ -1,0 +1,117 @@
+name: Publish update feeds
+run-name: Publish ${{ inputs.platform }} updates for ${{ inputs.tag }} / ${{ github.actor }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published stable release you have tested, e.g. 1.10.0-fusex-0.3
+        required: true
+        type: string
+      platform:
+        description: Platforms approved for automatic updates
+        required: true
+        default: both
+        type: choice
+        options: [both, windows, macos]
+
+permissions:
+  contents: read
+
+# Serialize feed changes across releases; never cancel an approved publication.
+concurrency:
+  group: update-feeds
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate release and select platforms
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          PLATFORM: ${{ inputs.platform }}
+        run: python3 .github/scripts/update_feeds.py plan
+
+  publish:
+    needs: plan
+    strategy:
+      fail-fast: false
+      # Sequential website pushes; a failed Mac publication still allows Windows.
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    environment: update-feeds
+    env:
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      PLATFORM: ${{ matrix.platform }}
+    steps:
+      # Use the reviewed main revision that was manually dispatched, never tag code.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install signature verification support
+        if: matrix.platform == 'macos'
+        run: python -m pip install 'cryptography==46.0.3'
+      - name: Download and verify published assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/update_feeds.py download
+      - name: Download pinned Sparkle tools
+        if: matrix.platform == 'macos'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(python3 -c 'import json; print(next(p["state"]["version"] for p in json.load(open("fusepb/FuseX.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"))["pins"] if p["identity"] == "sparkle"))')
+          mkdir -p build/sparkle
+          gh release download "$version" --repo sparkle-project/Sparkle --pattern "Sparkle-${version}.tar.xz" --dir build/sparkle
+          tar -xf "build/sparkle/Sparkle-${version}.tar.xz" -C build/sparkle
+      - name: Generate appcast using existing scripts
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ matrix.platform == 'macos' && secrets.SPARKLE_PRIVATE_KEY || '' }}
+        run: python3 .github/scripts/update_feeds.py generate
+      - name: Preserve generated feed for review
+        uses: actions/upload-artifact@v6
+        with:
+          name: update-feed-${{ matrix.platform }}
+          path: build/update-feeds/generated.xml
+          if-no-files-found: error
+      - name: Create website repository token
+        id: website-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.UPDATE_FEEDS_APP_ID }}
+          private-key: ${{ secrets.UPDATE_FEEDS_APP_PRIVATE_KEY }}
+          owner: speccytools
+          repositories: speccytools.github.io
+          permission-contents: write
+      - uses: actions/checkout@v7
+        with:
+          repository: speccytools/speccytools.github.io
+          token: ${{ steps.website-token.outputs.token }}
+          path: build/update-website
+          # Explicit credentials are installed only for the final push below.
+          persist-credentials: false
+      - name: Validate and push approved feed
+        env:
+          GH_TOKEN: ${{ steps.website-token.outputs.token }}
+          RELEASE_READ_TOKEN: ${{ github.token }}
+        run: |
+          gh auth setup-git
+          python3 .github/scripts/update_feeds.py publish

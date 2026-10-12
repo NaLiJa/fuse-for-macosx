@@ -8,6 +8,7 @@
 #   GITHUB_RELEASES_REPO         GitHub repo for release assets (default: speccytools/fusex)
 #   RELEASE_TAG                  GitHub release tag (default: PACKAGE_VERSION from config.h)
 #   PACKAGE_VERSION              Override version string (else read config.h)
+#   APPCAST_PUB_DATE              Override publication date (RFC 2822, for CI retries)
 #
 # Download URLs follow GitHub releases layout, e.g.:
 #   https://github.com/speccytools/fusex/releases/download/1.8.0-fusex-0.4/fusex-1.8.0-fusex-0.4-win32-setup.exe
@@ -45,20 +46,21 @@ if [[ -z "${PACKAGE_VERSION:-}" ]]; then
 fi
 
 RELEASE_TAG="${RELEASE_TAG:-$PACKAGE_VERSION}"
-SETUP_FILENAME="fusex-${PACKAGE_VERSION}-win32-setup.exe"
 SETUP_BASENAME="$( basename "$SETUP_EXE" )"
+SETUP_FILENAME="$SETUP_BASENAME"
 
-if [[ "$SETUP_BASENAME" != "$SETUP_FILENAME" ]]; then
+if [[ "$SETUP_BASENAME" != "fusex-${PACKAGE_VERSION}-win32-setup.exe" &&
+      "$SETUP_BASENAME" != "fusex-${PACKAGE_VERSION}-windows-x64-setup.exe" ]]; then
   echo "Error: installer basename mismatch." >&2
-  echo "  Expected: $SETUP_FILENAME (from config.h PACKAGE_VERSION=$PACKAGE_VERSION)" >&2
+  echo "  Expected: fusex-${PACKAGE_VERSION}-{win32,windows-x64}-setup.exe" >&2
   echo "  Got:      $SETUP_BASENAME" >&2
   echo "Re-run ./configure after updating configure.ac, then rebuild dist-win32." >&2
   exit 1
 fi
 
 DOWNLOAD_URL="https://github.com/${GITHUB_RELEASES_REPO}/releases/download/${RELEASE_TAG}/${SETUP_FILENAME}"
-# WinSparkle accepts length="0" when size is unknown (see Appcast-Feeds wiki).
-PUB_DATE="$( date -u '+%a, %d %b %Y %H:%M:%S +0000' )"
+SETUP_SIZE="$( wc -c < "$SETUP_EXE" | tr -d '[:space:]' )"
+PUB_DATE="${APPCAST_PUB_DATE:-$( date -u '+%a, %d %b %Y %H:%M:%S +0000' )}"
 
 mkdir -p "$( dirname "$OUTPUT_XML" )"
 
@@ -76,7 +78,7 @@ cat > "$OUTPUT_XML" <<EOF
       <enclosure url="${DOWNLOAD_URL}"
                  sparkle:os="windows-x64"
                  sparkle:installerArguments="/S"
-                 length="0"
+                 length="${SETUP_SIZE}"
                  type="application/octet-stream" />
     </item>
   </channel>

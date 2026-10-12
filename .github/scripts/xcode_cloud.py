@@ -14,8 +14,19 @@ from release_version import release_version, build_number
 import urllib.error
 import urllib.parse
 import urllib.request
+from uuid import UUID
 
 API = "https://api.appstoreconnect.apple.com/v1/"
+
+
+def validated_workflow_id(value):
+    value = (value or '').strip()
+    if not value:
+        raise ValueError('XCODE_CLOUD_WORKFLOW_ID is missing. Configure the Apple workflow ID in the macos-release environment.')
+    try:
+        return str(UUID(value))
+    except ValueError:
+        raise ValueError('XCODE_CLOUD_WORKFLOW_ID must be a valid workflow UUID from the Xcode Cloud workflow URL') from None
 
 
 class AppleAPI:
@@ -130,7 +141,10 @@ def main():
         parser.error("Expected a full commit SHA")
     if not args.ref.startswith("refs/tags/"):
         parser.error("Use a canonical tag ref")
-    workflow = os.environ["XCODE_CLOUD_WORKFLOW_ID"]
+    try:
+        workflow = validated_workflow_id(os.environ.get("XCODE_CLOUD_WORKFLOW_ID"))
+    except ValueError as error:
+        parser.error(str(error))
     api = AppleAPI()
     args.output.mkdir(parents=True, exist_ok=True)
     run_id = args.resume or start_build(api, workflow, args.ref)

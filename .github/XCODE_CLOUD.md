@@ -76,6 +76,9 @@ work. Create a new tag on the merged source; old release tags lack the new
 hook. Never move an existing published tag to try the pipeline.
 
 `Release FuseX` also supports manual dispatch with an existing release tag.
+Select **main** to use updated workflow instructions. Linux uses the packaging
+manifest from that workflow revision while building the exact tagged source;
+this permits packaging fixes without moving an existing tag.
 For a Mac-only retry, run `macOS release (Xcode Cloud)` on **main** with
 `source_ref=refs/tags/<tag>`. Leave `build_run_id` blank for a new build, or use
 the Apple build ID saved in the failed run's summary / `xcode-cloud-output`

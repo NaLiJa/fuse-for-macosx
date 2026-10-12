@@ -22,12 +22,25 @@ jobs:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
     steps:
+      # Packaging fixes can be applied to an existing tag without moving it.
+      - name: Check out reviewed packaging instructions
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Preserve packaging manifest
+        run: |
+          mkdir -p "$RUNNER_TEMP/fusex-packaging"
+          cp .github/builds/linux/org.speccytools.FuseX.json "$RUNNER_TEMP/fusex-packaging/"
       - name: Check out source
         uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source_sha }}
           submodules: recursive
           persist-credentials: false
+
+      - name: Apply reviewed packaging instructions to tagged source
+        run: cp "$RUNNER_TEMP/fusex-packaging/org.speccytools.FuseX.json" .github/builds/linux/
 
       - name: Stamp release version
         env:

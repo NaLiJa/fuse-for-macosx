@@ -35,7 +35,8 @@
       "buildsystem": "simple",
       "build-commands": [
         "./autogen.sh",
-        "make -C 3rdparty libssh2 MBEDTLS_BUILD_TARGET=lib MBEDTLS_MAKE_ARGS= MBEDTLS_CFLAGS=-fPIC",
+        "make -C 3rdparty libssh2 MBEDTLS_BUILD_TARGET=lib MBEDTLS_MAKE_ARGS= MBEDTLS_CFLAGS=-fPIC LIBSSH2_CMAKE_ARGS=-DCMAKE_INSTALL_LIBDIR:PATH=lib",
+        "test -f 3rdparty/dist/lib/libssh2.a && test -f 3rdparty/dist/include/libssh2.h",
         "./configure --prefix=/app --without-sdl --enable-sockets --enable-desktop-integration --with-desktop-dir=/app/share",
         "make -j$FLATPAK_BUILDER_N_JOBS",
         "make check",

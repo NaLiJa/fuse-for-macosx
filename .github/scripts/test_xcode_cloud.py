@@ -5,7 +5,7 @@ import contextlib
 import io
 from unittest.mock import patch
 
-from xcode_cloud import main, notarized_artifact, start_build, verify_run, wait_for_run, validated_workflow_id
+from xcode_cloud import AppleAPIError, main, notarized_artifact, resolve_workflow, start_build, verify_run, wait_for_run, validated_workflow_id
 
 
 class FakeAPI:
@@ -18,7 +18,10 @@ class FakeAPI:
         if payload is not None:
             self.created = payload
             return {"data": {"id": "new-run"}}
-        return self.documents[path]
+        result = self.documents[path]
+        if isinstance(result, Exception):
+            raise result
+        return result
 
     def items(self, path):
         return iter(self.collections[path])
@@ -31,9 +34,31 @@ def run(sha="a" * 40, status="SUCCEEDED", workflow="workflow"):
 
 
 class CloudTests(unittest.TestCase):
-    def test_workflow_uuid_is_normalized(self):
+    def test_workflow_uuid_preserves_apple_resource_casing(self):
         self.assertEqual(validated_workflow_id(' 528DCA26-4074-471F-A83B-D477B47DC2F0 '),
-                         '528dca26-4074-471f-a83b-d477b47dc2f0')
+                         '528DCA26-4074-471F-A83B-D477B47DC2F0')
+
+    def test_workflow_uses_exact_id_returned_by_apple(self):
+        api = FakeAPI({'ciWorkflows/WEB-ID': {'data': {'id': 'api-id'}}})
+        self.assertEqual(resolve_workflow(api, 'WEB-ID'), 'api-id')
+
+    def test_404_discovers_exact_workflow_casing(self):
+        api = FakeAPI({'ciWorkflows/web-id': AppleAPIError(404, 'ciWorkflows/web-id')},
+                      {'ciProducts?limit=200': [{'id': 'product'}],
+                       'ciProducts/product/workflows?limit=200': [{'id': 'WEB-ID'}, {'id': 'other'}]})
+        self.assertEqual(resolve_workflow(api, 'web-id'), 'WEB-ID')
+
+    def test_inaccessible_workflow_cannot_start_a_build(self):
+        api = FakeAPI({'ciWorkflows/missing': AppleAPIError(404, 'ciWorkflows/missing')},
+                      {'ciProducts?limit=200': []})
+        with self.assertRaisesRegex(ValueError, 'Apple team'):
+            resolve_workflow(api, 'missing')
+        self.assertIsNone(api.created)
+
+    def test_authentication_failure_does_not_try_discovery(self):
+        api = FakeAPI({'ciWorkflows/workflow': AppleAPIError(403, 'ciWorkflows/workflow')})
+        with self.assertRaises(AppleAPIError):
+            resolve_workflow(api, 'workflow')
 
     def test_missing_or_invalid_workflow_fails_before_api_request(self):
         for value in ('', '  ', 'not-a-workflow-id'):

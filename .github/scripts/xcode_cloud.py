@@ -24,9 +24,17 @@ def validated_workflow_id(value):
     if not value:
         raise ValueError('XCODE_CLOUD_WORKFLOW_ID is missing. Configure the Apple workflow ID in the macos-release environment.')
     try:
-        return str(UUID(value))
+        UUID(value)
+        # Apple resource IDs are opaque: validate without changing their casing.
+        return value
     except ValueError:
         raise ValueError('XCODE_CLOUD_WORKFLOW_ID must be a valid workflow UUID from the Xcode Cloud workflow URL') from None
+
+
+class AppleAPIError(RuntimeError):
+    def __init__(self, status, path):
+        self.status = status
+        super().__init__(f"Apple API returned HTTP {status} for {path.split('?')[0]}")
 
 
 class AppleAPI:
@@ -60,7 +68,7 @@ class AppleAPI:
                 if payload is None and error.code in (429, 500, 502, 503, 504) and attempt < 3:
                     time.sleep(10 * (attempt + 1))
                     continue
-                raise RuntimeError(f"Apple API returned HTTP {error.code} for {path.split('?')[0]}") from None
+                raise AppleAPIError(error.code, path) from None
 
     def items(self, path):
         while path:
@@ -77,6 +85,26 @@ def verify_run(run, workflow_id, expected_sha):
     if actual and actual.lower() != expected_sha.lower():
         raise ValueError(f"Apple build commit {actual} does not match {expected_sha}")
     return actual
+
+
+def resolve_workflow(api, workflow_id):
+    try:
+        return api.request(f"ciWorkflows/{workflow_id}")["data"]["id"]
+    except AppleAPIError as error:
+        if error.status != 404:
+            raise
+    # The web URL's UUID may differ in casing from the API's resource ID.
+    # Discover the exact ID without choosing a different workflow by name.
+    matches = []
+    for product in api.items("ciProducts?limit=200"):
+        for workflow in api.items(f"ciProducts/{product['id']}/workflows?limit=200"):
+            if workflow["id"].lower() == workflow_id.lower():
+                matches.append(workflow["id"])
+    if len(matches) != 1:
+        raise ValueError("Configured Xcode Cloud workflow is not uniquely visible to this API key. "
+                         "Check the workflow URL and that the API key/issuer belong to its Apple team "
+                         "and have access to Xcode Cloud.")
+    return matches[0]
 
 
 def start_build(api, workflow_id, source_ref):
@@ -146,6 +174,7 @@ def main():
     except ValueError as error:
         parser.error(str(error))
     api = AppleAPI()
+    workflow = resolve_workflow(api, workflow)
     args.output.mkdir(parents=True, exist_ok=True)
     run_id = args.resume or start_build(api, workflow, args.ref)
     metadata = {"build_run_id": run_id, "workflow_id": workflow,

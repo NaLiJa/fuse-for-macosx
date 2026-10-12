@@ -86,7 +86,8 @@ jobs:
           export PKG_CONFIG_PATH=
           export CPPFLAGS="-I$vcpkg_installed/include"
           export LDFLAGS="-L$vcpkg_installed/lib"
-          export LIBS="$(pkg-config --libs zlib)"
+          LIBS="$(pkg-config --libs zlib)"
+          export LIBS
 
           ./autogen.sh
           make -C 3rdparty -j"$(nproc)" libspectrum libssh2 \
@@ -121,7 +122,7 @@ jobs:
           test -n "$setup"
           cp "$setup" "build/windows-x64/fusex-${VERSION}-windows-x64-setup.exe"
           cp "fusex-${VERSION}-win32.zip" "build/windows-x64/fusex-${VERSION}-windows-x64.zip"
-          (cd build/windows-x64 && sha256sum *.exe *.zip > SHA256SUMS-windows.txt)
+          (cd build/windows-x64 && sha256sum ./*.exe ./*.zip > SHA256SUMS-windows.txt)
 
       - uses: actions/upload-artifact@v7
         name: Upload package

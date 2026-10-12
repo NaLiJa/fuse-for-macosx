@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <mime-info xmlns='http://www.freedesktop.org/standards/shared-mime-info'>
+  <mime-type type="audio/x-spectrum-csw">
+    <comment>ZX Spectrum tape</comment>
+    <magic>
+      <match type="string" offset="0" value="Compressed Square Wave\x1a"/>
+    </magic>
+    <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.csw"/>
+  </mime-type>
+  <mime-type type="application/x-spectrum-d80">
+    <generic-icon name="application-x-spectrum"/>
+  </mime-type>
+  <mime-type type="application/x-spectrum-dck">
+    <comment>ZX Spectrum cartridge</comment>
+    <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.dck"/>
+  </mime-type>
   <mime-type type="application/x-spectrum-dsk">
     <comment>ZX Spectrum disk</comment>
     <magic>
@@ -8,6 +24,39 @@
     </magic>
     <generic-icon name="application-x-spectrum"/>
     <glob pattern="*.dsk"/>
+  </mime-type>
+  <mime-type type="application/x-spectrum-fdi">
+    <comment>ZX Spectrum disk</comment>
+    <magic>
+      <match type="string" offset="0" value="FDI"/>
+    </magic>
+    <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.fdi"/>
+  </mime-type>
+  <mime-type type="application/x-spectrum-hdf">
+    <generic-icon name="application-x-spectrum"/>
+  </mime-type>
+  <mime-type type="application/x-spectrum-ltp">
+    <comment>ZX Spectrum tape</comment>
+    <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.ltp"/>
+  </mime-type>
+  <mime-type type="application/x-spectrum-mdr">
+    <generic-icon name="application-x-spectrum"/>
+  </mime-type>
+  <mime-type type="application/x-spectrum-mgt">
+    <generic-icon name="application-x-spectrum"/>
+  </mime-type>
+  <mime-type type="application/x-spectrum-mgtsnp">
+    <comment>ZX Spectrum snapshot</comment>
+    <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.mgtsnp"/>
+  </mime-type>
+  <mime-type type="application/x-spectrum-opd">
+    <comment>ZX Spectrum disk</comment>
+    <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.opd"/>
+    <glob pattern="*.opu"/>
   </mime-type>
   <mime-type type="application/x-spectrum-pzx">
     <comment>ZX Spectrum tape</comment>
@@ -25,6 +74,22 @@
     <generic-icon name="application-x-spectrum"/>
     <glob pattern="*.rzx"/>
   </mime-type>
+  <mime-type type="application/x-spectrum-sad">
+    <comment>ZX Spectrum disk</comment>
+    <magic>
+      <match type="string" offset="0" value="Aley's disk backup"/>
+    </magic>
+    <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.sad"/>
+  </mime-type>
+  <mime-type type="application/x-spectrum-scl">
+    <comment>ZX Spectrum disk</comment>
+    <magic>
+      <match type="string" offset="0" value="SINCLAIR"/>
+    </magic>
+    <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.scl"/>
+  </mime-type>
   <mime-type type="application/x-spectrum-slt">
     <comment>ZX Spectrum snapshot</comment>
     <generic-icon name="application-x-spectrum"/>
@@ -34,6 +99,16 @@
     <comment>ZX Spectrum snapshot</comment>
     <generic-icon name="application-x-spectrum"/>
     <glob pattern="*.sna"/>
+  </mime-type>
+  <mime-type type="application/x-spectrum-snp">
+    <comment>ZX Spectrum snapshot</comment>
+    <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.snp"/>
+  </mime-type>
+  <mime-type type="application/x-spectrum-sta">
+    <comment>ZX Spectrum tape</comment>
+    <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.sta"/>
   </mime-type>
   <mime-type type="application/x-spectrum-szx">
     <comment>ZX Spectrum snapshot</comment>
@@ -49,6 +124,16 @@
     <generic-icon name="application-x-spectrum"/>
     <glob pattern="*.tap"/>
   </mime-type>
+  <mime-type type="application/x-spectrum-td0">
+    <comment>ZX Spectrum disk</comment>
+    <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.td0"/>
+  </mime-type>
+  <mime-type type="application/x-spectrum-trd">
+    <comment>ZX Spectrum disk</comment>
+    <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.trd"/>
+  </mime-type>
   <mime-type type="application/x-spectrum-tzx">
     <comment>ZX Spectrum tape</comment>
     <magic>
@@ -57,37 +142,67 @@
     <generic-icon name="application-x-spectrum"/>
     <glob pattern="*.tzx"/>
   </mime-type>
+  <mime-type type="application/x-spectrum-udi">
+    <comment>ZX Spectrum disk</comment>
+    <magic>
+      <match type="string" offset="0" value="UDI!"/>
+    </magic>
+    <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.udi"/>
+  </mime-type>
   <mime-type type="application/x-spectrum-z80">
     <comment>ZX Spectrum snapshot</comment>
     <generic-icon name="application-x-spectrum"/>
     <glob pattern="*.z80"/>
   </mime-type>
+  <mime-type type="application/x-spectrum-zxs">
+    <comment>ZX Spectrum snapshot</comment>
+    <magic>
+      <match type="string" offset="8" value="SNAP"/>
+    </magic>
+    <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.zxs"/>
+  </mime-type>
   ##LIBSPECTRUM_HAVE_ZLIB_BEGIN##
   <mime-type type="application/x-spectrum-compressed">
     <comment>ZX Spectrum compressed</comment>
     <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.csw.gz"/>
+    <glob pattern="*.dck.gz"/>
+    <glob pattern="*.ltp.gz"/>
+    <glob pattern="*.mgtsnp.gz"/>
     <glob pattern="*.pzx.gz"/>
     <glob pattern="*.rzx.gz"/>
     <glob pattern="*.slt.gz"/>
     <glob pattern="*.sna.gz"/>
+    <glob pattern="*.snp.gz"/>
+    <glob pattern="*.sta.gz"/>
     <glob pattern="*.szx.gz"/>
     <glob pattern="*.tap.gz"/>
     <glob pattern="*.tzx.gz"/>
     <glob pattern="*.z80.gz"/>
+    <glob pattern="*.zxs.gz"/>
   </mime-type>
   ##LIBSPECTRUM_HAVE_ZLIB_END##
   ##LIBSPECTRUM_HAVE_BZ2_BEGIN##
   <mime-type type="application/x-spectrum-compressed-bz2">
     <comment>ZX Spectrum compressed</comment>
     <generic-icon name="application-x-spectrum"/>
+    <glob pattern="*.csw.bz2"/>
+    <glob pattern="*.dck.bz2"/>
+    <glob pattern="*.ltp.bz2"/>
+    <glob pattern="*.mgtsnp.bz2"/>
     <glob pattern="*.pzx.bz2"/>
     <glob pattern="*.rzx.bz2"/>
     <glob pattern="*.slt.bz2"/>
     <glob pattern="*.sna.bz2"/>
+    <glob pattern="*.snp.bz2"/>
+    <glob pattern="*.sta.bz2"/>
     <glob pattern="*.szx.bz2"/>
     <glob pattern="*.tap.bz2"/>
     <glob pattern="*.tzx.bz2"/>
     <glob pattern="*.z80.bz2"/>
+    <glob pattern="*.zxs.bz2"/>
   </mime-type>
   ##LIBSPECTRUM_HAVE_BZ2_END##
 </mime-info>

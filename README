@@ -1,103 +1,113 @@
-FuseX 1.10.0
-============================================
+FuseX
+=====
 
-FuseX is an emulator of the ZX Spectrum (a popular 1980s home
-computer, especially in the UK) for Unix. However, it has now also
-been ported to macOS, which may or may not count as a Unix variant
-depending on your advocacy position and Windows which definitely isn't
-a Unix variant. Fuse also emulates some of the better-known ZX Spectrum
-clones as well.
+FuseX is a ZX Spectrum emulator for macOS, Windows and Linux, based on Fuse.
+Play Spectrum games, load tapes and snapshots, and try Spectranet/Spectranext
+networking without physical hardware. It supports the original Spectrum models,
+several clones, joysticks, disk interfaces and RZX recordings.
 
-What Fuse does have:
+Download and install
+--------------------
 
-* Accurate Spectrum 16K/48K/128K/+2/+2A/+3 emulation.
-* Working Spectrum +3e and SE, Timex TC2048, TC2068 and TS2068,
-  Pentagon 128, "512" (Pentagon 128 with extra memory) and 1024 and
-  Scorpion ZS 256 emulation.
-* Runs at true Speccy speed on any computer you're likely to try it on.
-* Support for loading from .tzx files, including accelerated loading.
-* Sound (on systems supporting the Open Sound System, SDL, OpenBSD/
-  Solaris's /dev/audio, CoreAudio or PulseAudio).
-* Emulation of most of the common joysticks used on the Spectrum
-  (including Kempston, Sinclair and Cursor joysticks).
-* Emulation of some of the printers you could attach to a Spectrum.
-* Support for the RZX input recording file format, including
-  rollback and 'competition mode'.
-* Emulation of the Currah µSource, Interface 1, Kempston mouse,
-  Multiface One/128/3 and TTX2000S interfaces.
-* Emulation of the Covox, Currah µSpeech, Fuller audio box, Melodik and
-  SpecDrum audio interfaces.
-* Emulation of the DivIDE, DivMMC, Spectrum +3e, ZXATASP, ZXCF and ZXMMC
-  storage interfaces.
-* Emulation of the Beta 128, +D, Didaktik 80/40, DISCiPLE and Opus Discovery
-  disk interfaces.
-* Emulation of the Spectranet and SpeccyBoot network interfaces.
-* Emulation of the TTX2000 S Teletext adapter.
-* Support for the Recreated ZX Spectrum Bluetooth keyboard.
+Download a build from https://github.com/speccytools/fusex/releases.
+Expand Assets on the release page and choose the file for your platform.
+Prereleases are available for testing; check the release notes before installing.
+The "Source code" archives are for building, not running the app.
 
-Help! <xyz> doesn't work
-------------------------
+* macOS (12 Monterey or later, Intel and Apple silicon): open the .dmg,
+  drag FuseX to Applications, eject the disk image, then launch FuseX.
+* Windows (x64): run the *-setup.exe installer. For a portable installation,
+  extract the Windows .zip into a folder and run fuse.exe; keep the accompanying
+  files together.
+* Linux (x64): install Flatpak through your distribution, then download the
+  .flatpak bundle. From the folder containing it, run:
 
-If you're having a problem using/running/building FuseX, report it at
-<https://github.com/speccytools/fusex/issues>.
+    flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+    flatpak install --user ./FuseX-*.flatpak
+    flatpak run org.speccytools.FuseX
 
-What you'll need to run Fuse
-----------------------------
+  Accept installation of the required runtime. You can also launch FuseX from
+  your desktop's application menu. The bundle is small because Flatpak supplies
+  the shared runtime separately.
 
-Unix, Linux, BSD, etc.
+To update, install a newer release over the existing installation. macOS and
+Windows also offer in-app update checks; a release appears there after it has
+been approved for automatic updates.
 
-Required:
+Getting started
+---------------
 
-* X, SDL or framebuffer support. If you have GTK, you'll get
-  a (much) nicer user interface under X.
-* libspectrum: this is available from
-  https://fuse-emulator.sourceforge.net/libspectrum.php
+Choose a Spectrum model in the machine settings, then open a tape (.tap/.tzx),
+snapshot (.sna/.z80), or supported disk image from the File menu. Tape images
+may need the machine's normal LOAD command; snapshots resume saved machine state.
+Use the joystick settings to select the interface expected by your game.
 
-Optional:
+Spectranext
+-----------
 
-* Other libraries will give you some extended functionality:
-  * libgcrypt: the ability to digitally sign input recordings (note that
-    Fuse requires version 1.1.42 or later).
-  * libpng: the ability to save screenshots
-  * libxml2: the ability to load and save Fuse's current configuration
-  * zlib: support for compressed RZX files
+Spectranext is a modern network cartridge for the ZX Spectrum. FuseX emulates
+its networking and filesystem features, so you can try compatible software
+or develop it using the Spectranext SDK without a cartridge.
 
-If you've used Fuse prior to version 0.5.0, note that the external
-utilities (tzxlist, etc) are now available separately from Fuse
-itself. See https://fuse-emulator.sourceforge.net/ for details.
+Enable the interface in the peripheral settings: on macOS, select Spectranext
+under Preferences -> Peripherals; on Windows/Linux, enable Spectranet in the
+peripheral options. Reset the emulated machine after changing the interface.
+Current builds include this support in the normal FuseX download.
+
+For SDK development, also enable the GDB server in the debugger settings.
+Setup and examples: https://docs.spectranext.net/tutorials/emulation
+Hardware and project information: https://spectranext.net/
+
+Build from source
+-----------------
+
+Clone with submodules, then follow the instructions for your platform:
+
+    git clone --recurse-submodules https://github.com/speccytools/fusex.git
+    cd fusex
 
 macOS
 
-* Either the native port by Fredrick Meunier, or the original version
-  will compile on macOS 10.3 (Panther) or later.
-* On macOS Lion you will need to use clang as gcc-llvm-4.2.1 fails to
-  correctly compile z80_ops.c.
+Install Xcode and its command-line tools, plus Homebrew's build prerequisites:
+
+    brew install autoconf automake libtool pkg-config
+    make -C fusepb
+    make -f Makefile.darwin fusex ARCHS="arm64 x86_64" \
+      XCODEBUILD_SIGN_ARGS="CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="
+
+The local app is fusepb/build/Deployment/FuseX.app. This uses ad-hoc signing;
+distribution signing and notarization are separate steps. You can also open
+fusepb/FuseX.xcodeproj in Xcode after building the dependencies.
 
 Windows
 
-* The Win32 and SDL UIs can be used under Windows.
-* pthreads-win32 library will give the ability to use posix threads, needed by
-  some peripherals.
+Use the MSYS2 MinGW64 shell with GCC, Make, CMake, pkg-config, Perl, Autoconf,
+Automake, Libtool and ZIP installed. Install NSIS if you want an installer.
+The build script builds the bundled dependencies and creates the distribution:
 
-Building FuseX
--------------
+    SKIP_APPCAST=1 bash build_win32.sh
 
-See the file `INSTALL' for more detailed information.
+Linux
 
-Closing comments
+Install a C11 compiler, Make, Autoconf, Automake, Libtool, pkg-config, Perl,
+Bison, Flex and CMake, plus development packages for GTK 3, libspectrum,
+libxml2, zlib and libpng. Build the bundled networking libraries first:
+
+    ./autogen.sh
+    make -C 3rdparty libssh2 MBEDTLS_BUILD_TARGET=lib MBEDTLS_MAKE_ARGS= MBEDTLS_CFLAGS=-fPIC
+    ./configure --enable-sockets
+    make
+    ./fuse
+
+See INSTALL for configure options. The Flatpak build manifest is
+.github/builds/linux/org.speccytools.FuseX.json. Maintainer release instructions
+are in .github/XCODE_CLOUD.md and hacking/releasing.md.
+
+Help and credits
 ----------------
 
-FuseX has its own home page, which you can find at:
+Report problems at https://github.com/speccytools/fusex/issues. Include your OS,
+FuseX version, steps to reproduce, and any error message or crash report.
 
-https://speccytools.org/
-
-and contains much of the information listed here. 
-
-If you've got any bug reports or suggestions for FuseX, report them at
-https://github.com/speccytools/fusex/issues.
-
-Maintainer release notes are in `hacking/releasing.md'.
-
-For Spectrum discussions not directly related to Fuse, visit either the
-Usenet newsgroup `comp.sys.sinclair' or the World of Spectrum forums
-<http://www.worldofspectrum.org/forums/>.
+FuseX builds on the work of the Fuse and libspectrum contributors and the native
+macOS port by Fredrick Meunier. See AUTHORS and COPYING for credits and licensing.

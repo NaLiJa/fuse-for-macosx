@@ -1,0 +1,112 @@
+name: Publish update feeds
+run-name: Publish ${{ inputs.platform }} updates for ${{ inputs.tag }} / ${{ github.actor }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published stable release you have tested, e.g. 1.10.0-fusex-0.3
+        required: true
+        type: string
+      platform:
+        description: Platforms approved for automatic updates
+        required: true
+        default: both
+        type: choice
+        options: [both, windows, macos]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-feeds
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    environment: update-feeds
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        platform: ${{ fromJSON(inputs.platform == 'both' && '["windows","macos"]' || inputs.platform == 'windows' && '["windows"]' || '["macos"]') }}
+    runs-on: ${{ matrix.platform == 'macos' && 'macos-26' || 'ubuntu-24.04' }}
+    timeout-minutes: 20
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Download tested stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          sys.path.insert(0, 'fusepb/ci_scripts')
+          from release_version import release_version
+          release_version(os.environ['RELEASE_TAG'])
+          PY
+          test "$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease --jq '.isDraft or .isPrerelease')" = false
+          if [ "$PLATFORM" = macos ]; then
+            asset="FuseX-${RELEASE_TAG}.dmg"
+            checksums="${asset}.sha256"
+          else
+            asset="fusex-${RELEASE_TAG}-windows-x64-setup.exe"
+            checksums=SHA256SUMS-windows.txt
+          fi
+          mkdir -p build/update-assets
+          gh release download "$RELEASE_TAG" --pattern "$asset" --pattern "$checksums" --dir build/update-assets
+          (cd build/update-assets && grep -F "$asset" "$checksums" | shasum -a 256 -c)
+      - name: Download pinned Sparkle tools
+        if: matrix.platform == 'macos'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(python3 -c 'import json; print(next(p["state"]["version"] for p in json.load(open("fusepb/FuseX.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"))["pins"] if p["identity"] == "sparkle"))')
+          mkdir -p build/sparkle
+          gh release download "$version" --repo sparkle-project/Sparkle --pattern "Sparkle-${version}.tar.xz" --dir build/sparkle
+          tar -xf "build/sparkle/Sparkle-${version}.tar.xz" -C build/sparkle
+      - name: Create website repository token
+        id: website-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.UPDATE_FEEDS_APP_ID }}
+          private-key: ${{ secrets.UPDATE_FEEDS_APP_PRIVATE_KEY }}
+          owner: speccytools
+          repositories: speccytools.github.io
+          permission-contents: write
+      - uses: actions/checkout@v7
+        with:
+          repository: speccytools/speccytools.github.io
+          token: ${{ steps.website-token.outputs.token }}
+          path: build/update-website
+          persist-credentials: false
+      - name: Generate and publish approved feed
+        env:
+          GH_TOKEN: ${{ steps.website-token.outputs.token }}
+          PLATFORM: ${{ matrix.platform }}
+          SPARKLE_PRIVATE_KEY: ${{ matrix.platform == 'macos' && secrets.SPARKLE_PRIVATE_KEY || '' }}
+        run: |
+          gh auth setup-git
+          git -C build/update-website config user.name 'FuseX Update Publisher'
+          git -C build/update-website config user.email 'fusex-updates@users.noreply.github.com'
+          if [ "$PLATFORM" = macos ]; then
+            test -n "$SPARKLE_PRIVATE_KEY"
+            printf '%s\n' "$SPARKLE_PRIVATE_KEY" | make -f Makefile.darwin appcast-push \
+              FUSEX_VERSION="$RELEASE_TAG" APPCAST_PUSH_DIR=build/update-website \
+              APPCAST_ARCHIVE="build/update-assets/FuseX-${RELEASE_TAG}.dmg" \
+              SPARKLE_GENERATE_APPCAST="$PWD/build/sparkle/bin/generate_appcast" \
+              SPARKLE_ED_KEY_FILE=-
+          else
+            PACKAGE_VERSION="$RELEASE_TAG" bash data/win32/generate-appcast.sh \
+              "build/update-assets/fusex-${RELEASE_TAG}-windows-x64-setup.exe"
+            make -f Makefile.darwin appcast-publish FUSEX_VERSION="$RELEASE_TAG" \
+              APPCAST_DIR=build/appcast-windows APPCAST_PUSH_DIR=build/update-website \
+              APPCAST_PUSH_PATH=updates/windows/appcast.xml
+          fi

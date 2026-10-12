@@ -2,7 +2,7 @@ name: Release FuseX
 
 on:
   push:
-    tags: ['**']
+    tags: ['*-fusex-*']
   workflow_dispatch:
     inputs:
       tag:

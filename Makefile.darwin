@@ -1,4 +1,4 @@
-.PHONY: fusepb 3rdparty audiofile libgcrypt FuseGenerator FuseImporter mbedtls libssh2 libspectrum libfusex libfusex-xcode clean-3rdparty list-teams fusex archive dist dmg appcast appcast-push release release-clean release-notarize release-export clean
+.PHONY: fusepb 3rdparty audiofile libgcrypt FuseGenerator FuseImporter mbedtls libssh2 libspectrum libfusex libfusex-xcode clean-3rdparty list-teams fusex archive dist dmg appcast appcast-push appcast-publish release release-clean release-notarize release-export clean
 
 # Signing parameters (can be overridden from command line)
 # By default, use the signing settings already stored in the Xcode projects.
@@ -36,7 +36,9 @@ APPCAST_ARCHIVE ?= ./$(DMG_NAME)
 APPCAST_OUTPUT ?= appcast.xml
 APPCAST_URL_PREFIX ?= https://github.com/speccytools/fusex/releases/download/$(FUSEX_VERSION)/
 APPCAST_PUSH_DIR ?= ../speccytools.github.io
+APPCAST_PUSH_PATH ?= $(APPCAST_OUTPUT)
 SPARKLE_GENERATE_APPCAST ?= $(shell find "$(HOME)/Library/Developer/Xcode/DerivedData" -path "*/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast" -type f 2>/dev/null | head -1)
+SPARKLE_ED_KEY_FILE ?=
 FUSEGENERATOR_DEVELOPMENT_TEAM ?= $(if $(DEVELOPMENT_TEAM),$(DEVELOPMENT_TEAM),48UV5KV3FB)
 FUSEGENERATOR_CODE_SIGN_IDENTITY ?= $(if $(CODE_SIGN_IDENTITY),$(CODE_SIGN_IDENTITY),Developer ID Application)
 FUSEGENERATOR_CODE_SIGN_STYLE ?= $(if $(CODE_SIGN_STYLE),$(CODE_SIGN_STYLE),Manual)
@@ -315,7 +317,7 @@ appcast:
 		echo "Create it first with: make dmg"; \
 		exit 1; \
 	fi
-	@url_prefix="$(APPCAST_URL_PREFIX)"; \
+	@set -e; url_prefix="$(APPCAST_URL_PREFIX)"; \
 	if [ -z "$$url_prefix" ]; then \
 		echo "Error: APPCAST_URL_PREFIX is required"; \
 		exit 1; \
@@ -324,12 +326,17 @@ appcast:
 	mkdir -p "$(APPCAST_DIR)"; \
 	cp -f "$(APPCAST_ARCHIVE)" "$(APPCAST_DIR)/"; \
 	"$(SPARKLE_GENERATE_APPCAST)" \
+		$(if $(SPARKLE_ED_KEY_FILE),--ed-key-file "$(SPARKLE_ED_KEY_FILE)") \
 		--download-url-prefix "$$url_prefix" \
 		-o "$(APPCAST_DIR)/$(APPCAST_OUTPUT)" \
 		"$(APPCAST_DIR)"; \
 	echo "Appcast generated: $(APPCAST_DIR)/$(APPCAST_OUTPUT)"
 
 appcast-push: appcast
+	$(MAKE) -f Makefile.darwin appcast-publish
+
+# Also publish an already generated Windows feed using the same Git logic.
+appcast-publish:
 	@echo "Publishing Sparkle appcast..."
 	@if [ ! -d "$(APPCAST_PUSH_DIR)/.git" ]; then \
 		echo "Error: appcast push repository not found: $(APPCAST_PUSH_DIR)"; \
@@ -339,9 +346,10 @@ appcast-push: appcast
 		echo "Error: appcast not found: $(APPCAST_DIR)/$(APPCAST_OUTPUT)"; \
 		exit 1; \
 	fi
-	cp -f "$(APPCAST_DIR)/$(APPCAST_OUTPUT)" "$(APPCAST_PUSH_DIR)/$(APPCAST_OUTPUT)"
-	git -C "$(APPCAST_PUSH_DIR)" add "$(APPCAST_OUTPUT)"
-	@if git -C "$(APPCAST_PUSH_DIR)" diff --cached --quiet -- "$(APPCAST_OUTPUT)"; then \
+	mkdir -p "$(dir $(APPCAST_PUSH_DIR)/$(APPCAST_PUSH_PATH))"
+	cp -f "$(APPCAST_DIR)/$(APPCAST_OUTPUT)" "$(APPCAST_PUSH_DIR)/$(APPCAST_PUSH_PATH)"
+	git -C "$(APPCAST_PUSH_DIR)" add "$(APPCAST_PUSH_PATH)"
+	@if git -C "$(APPCAST_PUSH_DIR)" diff --cached --quiet -- "$(APPCAST_PUSH_PATH)"; then \
 		echo "No appcast changes to commit."; \
 	else \
 		git -C "$(APPCAST_PUSH_DIR)" commit -m "Update FuseX $(FUSEX_VERSION)"; \

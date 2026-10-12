@@ -2,8 +2,8 @@
 
 Push a release tag such as `1.10.0-fusex-0.3` after merging its source into
 `main`. The tag supplies the version inside every package; no version commit is
-required. The workflow listens to all tags and validates the complete version
-at runtime. Non-release tags fail validation without building packages.
+required. The workflow listens only to `*-fusex-*` tags and validates the complete
+version at runtime. Upstream tags do not trigger release builds.
 
 `release.yml` runs one stock FuseX build per platform:
 
@@ -17,10 +17,52 @@ Windows and Linux upload independently to a GitHub draft release. The macOS
 workflow is dispatched separately and adds its assets to the same draft.
 Apple billing, approval delays, build failures, or timeout cannot stop the
 other platforms. SHA-256 checksums accompany each package. Review platform
-results and publish the draft when ready. Automatic update-feed publication
-and Sparkle/WinSparkle feed signing remain in the existing local deploy scripts;
-this pipeline does not have those private signing keys or write access to the
-website repository.
+results and publish the draft when ready. Publishing a release does not update
+Sparkle/WinSparkle: test the downloads, then explicitly approve feed publication
+with the separate manual workflow below.
+
+## Approving automatic updates
+
+After testing a published stable release, open **Actions → Publish update feeds →
+Run workflow**, select **main**, enter its tag, and choose **windows**, **macos**,
+or **both**. There is no automatic trigger on tags or release publication.
+Drafts, prereleases, and tags outside the FuseX version format are rejected.
+If a tested prerelease is ready for ordinary users, first promote it to a stable
+release. Select the version you want to offer to users when approving the run.
+
+The `update-feeds` environment needs:
+
+- Variable `UPDATE_FEEDS_APP_ID`: the GitHub App's numeric ID.
+- Secret `UPDATE_FEEDS_APP_PRIVATE_KEY`: the GitHub App's full PEM private key.
+- Secret `SPARKLE_PRIVATE_KEY`: the existing Sparkle Ed25519 private key exported
+  using Sparkle's `bin/generate_keys -x <file>`, then copied from that file into
+  the secret. This is separate from Apple signing and App Store Connect keys.
+  Keep the existing key: installed apps trust its public key. Windows-only
+  publication does not need this secret.
+- Deployment branch limited to **main**; configure yourself as a required
+  reviewer if you want a second approval after manual dispatch. If approving your
+  own dispatch, leave **Prevent self-review** disabled.
+
+Install the GitHub App only on `speccytools/speccytools.github.io`, with repository
+**Contents: Read and write**. No webhook or organisation-wide access is needed.
+The workflow requests a short-lived token scoped to that repository. Its normal
+`GITHUB_TOKEN` reads FuseX assets but cannot write to the website repository.
+Website branch rules must permit the app's push; the workflow never force-pushes.
+
+The workflow downloads the existing release assets and checks their SHA-256
+checksum files. For macOS it invokes the existing `appcast-push` target with
+Sparkle's pinned tools and supplies the existing signing key through standard
+input. Windows uses `data/win32/generate-appcast.sh`, followed by
+`appcast-publish`, which shares the existing Git publishing recipe with the Mac
+target. No release binaries are rebuilt. Windows keeps its existing unsigned
+WinSparkle feed format.
+
+The feeds are committed to `appcast.xml` and `updates/windows/appcast.xml` in the
+website's default branch. Platforms publish sequentially, with failures isolated;
+a Mac failure does not prevent Windows publication. Retry a failed platform by
+selecting it in a new manual run. An unchanged XML file produces no new commit.
+GitHub concurrency can replace a pending run if several are queued; dispatch
+again if an intended publication was superseded.
 
 ## Apple configuration
 
@@ -105,7 +147,7 @@ Validation:
 
 ```sh
 python3 -m unittest discover -s .github/scripts -p 'test_*.py'
-actionlint .github/workflows/release.yml .github/workflows/package-windows-x64.yml .github/workflows/package-flatpak.yml .github/workflows/macos_cloud_release.yml
+actionlint .github/workflows/release.yml .github/workflows/package-windows-x64.yml .github/workflows/package-flatpak.yml .github/workflows/macos_cloud_release.yml .github/workflows/update-feeds.yml
 ```
 
 The Linux build runs `make check`. Cross-built Windows executables cannot run

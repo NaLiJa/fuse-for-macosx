@@ -5,6 +5,7 @@ on:
       - '.github/**'
       - 'fusepb/ci_scripts/**'
       - '3rdparty/Makefile'
+      - 'Makefile.darwin'
       - 'data/win32/**'
       - 'configure.ac'
       - 'deploy_*.sh'
@@ -25,9 +26,9 @@ jobs:
       - name: Validate release workflows
         run: |
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.11
-          actionlint .github/workflows/release.yml .github/workflows/package-windows-x64.yml .github/workflows/package-flatpak.yml .github/workflows/macos_cloud_release.yml .github/workflows/release-checks.yml
+          actionlint .github/workflows/release.yml .github/workflows/package-windows-x64.yml .github/workflows/package-flatpak.yml .github/workflows/macos_cloud_release.yml .github/workflows/update-feeds.yml .github/workflows/release-checks.yml
       - name: Check version stamping and release provenance
         run: |
           python3 -m unittest discover -s .github/scripts -p 'test_*.py'
-          bash -n deploy_win.sh deploy_mac.sh
+          bash -n deploy_win.sh deploy_mac.sh data/win32/generate-appcast.sh
           sh -n fusepb/ci_scripts/ci_pre_xcodebuild.sh

@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 
-# Build both the Spectranext-ready and stock FuseX Windows installers on macOS.
+# Build the stock FuseX Windows installers on macOS.
 
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly SETTINGS_PATH="$SCRIPT_DIR/settings.dat"
 readonly APPCAST_REPOSITORY="$SCRIPT_DIR/../speccytools.github.io"
 readonly APPCAST_DESTINATION="$APPCAST_REPOSITORY/updates/windows/appcast.xml"
 readonly MAKEFILE_PATH="$SCRIPT_DIR/Makefile"
@@ -78,20 +77,6 @@ done
 # Begin from the committed defaults and restore them even if either build fails.
 restore_settings
 
-make_spectranext_settings() {
-  restore_settings
-
-  perl -pi -e \
-    's/^spectranet,[ \t]*boolean,[ \t]*[01][ \t]*$/spectranet, boolean, 1/; s/^start_machine,[ \t]*string,[ \t]*"[^"]*",,[ \t]*'"'"'m'"'"',[ \t]*machine[ \t]*$/start_machine, string, "128",, '"'"'m'"'"', machine/' \
-    "$SETTINGS_PATH"
-
-  if ! grep -Fqx 'spectranet, boolean, 1' "$SETTINGS_PATH" || \
-     ! grep -Fqx 'start_machine, string, "128",, '\''m'\'', machine' "$SETTINGS_PATH"; then
-    echo "Error: failed to apply the Spectranext defaults to settings.dat." >&2
-    exit 1
-  fi
-}
-
 build_installer() {
   local variant_name="$1"
   local skip_appcast="$2"
@@ -116,12 +101,6 @@ build_installer() {
   fi
 }
 
-make_spectranext_settings
-build_installer Spectranext 1
-spectranext_installer="$SCRIPT_DIR/fusex-spectranext-${PACKAGE_VERSION}-win32-setup.exe"
-mv -f "$BUILT_INSTALLER" "$spectranext_installer"
-
-echo "==> Restoring stock FuseX settings"
 restore_settings
 build_installer stock 0
 stock_installer="$BUILT_INSTALLER"
@@ -132,6 +111,5 @@ if [[ ! -f "$APPCAST_DESTINATION" ]]; then
 fi
 
 echo "==> Deployment complete"
-echo "    $spectranext_installer"
 echo "    $stock_installer"
 echo "    $APPCAST_DESTINATION"

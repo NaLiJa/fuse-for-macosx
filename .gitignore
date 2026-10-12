@@ -137,3 +137,6 @@ xcuserdata
 /fusex-*
 .idea/
 /.ticks_history.txt
+
+# Python release tooling caches
+__pycache__/

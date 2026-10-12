@@ -1,0 +1,33 @@
+name: Release pipeline checks
+on:
+  pull_request:
+    paths:
+      - '.github/**'
+      - 'fusepb/ci_scripts/**'
+      - '3rdparty/Makefile'
+      - 'data/win32/**'
+      - 'configure.ac'
+      - 'deploy_*.sh'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          cache: false
+      - name: Validate release workflows
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.11
+          actionlint .github/workflows/release.yml .github/workflows/package-windows-x64.yml .github/workflows/package-flatpak.yml .github/workflows/macos_cloud_release.yml .github/workflows/release-checks.yml
+      - name: Check version stamping and release provenance
+        run: |
+          python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+          bash -n deploy_win.sh deploy_mac.sh
+          sh -n fusepb/ci_scripts/ci_pre_xcodebuild.sh

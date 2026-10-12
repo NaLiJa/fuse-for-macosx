@@ -26,9 +26,9 @@ with the separate manual workflow below.
 After testing a published stable release, open **Actions → Publish update feeds →
 Run workflow**, select **main**, enter its tag, and choose **windows**, **macos**,
 or **both**. There is no automatic trigger on tags or release publication.
-Drafts, prereleases, tags outside the FuseX version format, and tag commits not
-reachable from main are rejected. If a tested prerelease is ready for ordinary
-users, first promote it to a stable release.
+Drafts, prereleases, and tags outside the FuseX version format are rejected.
+If a tested prerelease is ready for ordinary users, first promote it to a stable
+release. Select the version you want to offer to users when approving the run.
 
 The `update-feeds` environment needs:
 
@@ -49,24 +49,20 @@ The workflow requests a short-lived token scoped to that repository. Its normal
 `GITHUB_TOKEN` reads FuseX assets but cannot write to the website repository.
 Website branch rules must permit the app's push; the workflow never force-pushes.
 
-The publisher downloads the exact existing assets, verifies GitHub's SHA-256
-digests and sizes, and reuses `make -f Makefile.darwin appcast` and the Windows
-appcast generator. macOS uses the pinned Sparkle tools and checks the resulting
-DMG signature against `SUPublicEDKey`, as well as the Apple build counter in
-`macos-build.json`. Windows preserves the existing unsigned WinSparkle feed
-format; adding Windows signature enforcement requires a separate app/key change.
+The workflow downloads the existing release assets and checks their SHA-256
+checksum files. For macOS it invokes the existing `appcast-push` target with
+Sparkle's pinned tools and supplies the existing signing key through standard
+input. Windows uses `data/win32/generate-appcast.sh`, followed by
+`appcast-publish`, which shares the existing Git publishing recipe with the Mac
+target. No release binaries are rebuilt. Windows keeps its existing unsigned
+WinSparkle feed format.
 
-The resulting feeds are committed to `appcast.xml` and
-`updates/windows/appcast.xml` in the website's default branch. Each platform also
-uploads its generated XML as a workflow artifact. Website hosting must deploy
-that branch, as it does for the existing manually pushed feeds.
-
-Platforms run independently, so Mac failures do not prevent Windows publication.
-The workflow serializes website writes, retries concurrent external pushes,
-rejects version/counter downgrades, and leaves an already published identical
-release unchanged. For a failed platform, rerun manually with only that platform
-selected. GitHub concurrency can replace a pending run if several are queued;
-manually dispatch again if an intended publication was superseded.
+The feeds are committed to `appcast.xml` and `updates/windows/appcast.xml` in the
+website's default branch. Platforms publish sequentially, with failures isolated;
+a Mac failure does not prevent Windows publication. Retry a failed platform by
+selecting it in a new manual run. An unchanged XML file produces no new commit.
+GitHub concurrency can replace a pending run if several are queued; dispatch
+again if an intended publication was superseded.
 
 ## Apple configuration
 

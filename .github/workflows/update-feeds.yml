@@ -18,61 +18,51 @@ on:
 permissions:
   contents: read
 
-# Serialize feed changes across releases; never cancel an approved publication.
 concurrency:
   group: update-feeds
   cancel-in-progress: false
 
 jobs:
-  plan:
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
-    outputs:
-      matrix: ${{ steps.plan.outputs.matrix }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Validate release and select platforms
-        id: plan
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ inputs.tag }}
-          PLATFORM: ${{ inputs.platform }}
-        run: python3 .github/scripts/update_feeds.py plan
-
   publish:
-    needs: plan
+    if: github.ref == 'refs/heads/main'
+    environment: update-feeds
     strategy:
       fail-fast: false
-      # Sequential website pushes; a failed Mac publication still allows Windows.
       max-parallel: 1
-      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
-    runs-on: ${{ matrix.runner }}
+      matrix:
+        platform: ${{ fromJSON(inputs.platform == 'both' && '["windows","macos"]' || inputs.platform == 'windows' && '["windows"]' || '["macos"]') }}
+    runs-on: ${{ matrix.platform == 'macos' && 'macos-26' || 'ubuntu-24.04' }}
     timeout-minutes: 20
-    environment: update-feeds
     env:
-      GH_REPO: ${{ github.repository }}
       RELEASE_TAG: ${{ inputs.tag }}
-      PLATFORM: ${{ matrix.platform }}
+      GH_REPO: ${{ github.repository }}
     steps:
-      # Use the reviewed main revision that was manually dispatched, never tag code.
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-      - name: Install signature verification support
-        if: matrix.platform == 'macos'
-        run: python -m pip install 'cryptography==46.0.3'
-      - name: Download and verify published assets
+      - name: Download tested stable release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 .github/scripts/update_feeds.py download
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          sys.path.insert(0, 'fusepb/ci_scripts')
+          from release_version import release_version
+          release_version(os.environ['RELEASE_TAG'])
+          PY
+          test "$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease --jq '.isDraft or .isPrerelease')" = false
+          if [ "$PLATFORM" = macos ]; then
+            asset="FuseX-${RELEASE_TAG}.dmg"
+            checksums="${asset}.sha256"
+          else
+            asset="fusex-${RELEASE_TAG}-windows-x64-setup.exe"
+            checksums=SHA256SUMS-windows.txt
+          fi
+          mkdir -p build/update-assets
+          gh release download "$RELEASE_TAG" --pattern "$asset" --pattern "$checksums" --dir build/update-assets
+          (cd build/update-assets && grep -F "$asset" "$checksums" | shasum -a 256 -c)
       - name: Download pinned Sparkle tools
         if: matrix.platform == 'macos'
         env:
@@ -82,16 +72,6 @@ jobs:
           mkdir -p build/sparkle
           gh release download "$version" --repo sparkle-project/Sparkle --pattern "Sparkle-${version}.tar.xz" --dir build/sparkle
           tar -xf "build/sparkle/Sparkle-${version}.tar.xz" -C build/sparkle
-      - name: Generate appcast using existing scripts
-        env:
-          SPARKLE_PRIVATE_KEY: ${{ matrix.platform == 'macos' && secrets.SPARKLE_PRIVATE_KEY || '' }}
-        run: python3 .github/scripts/update_feeds.py generate
-      - name: Preserve generated feed for review
-        uses: actions/upload-artifact@v6
-        with:
-          name: update-feed-${{ matrix.platform }}
-          path: build/update-feeds/generated.xml
-          if-no-files-found: error
       - name: Create website repository token
         id: website-token
         uses: actions/create-github-app-token@v2
@@ -106,12 +86,27 @@ jobs:
           repository: speccytools/speccytools.github.io
           token: ${{ steps.website-token.outputs.token }}
           path: build/update-website
-          # Explicit credentials are installed only for the final push below.
           persist-credentials: false
-      - name: Validate and push approved feed
+      - name: Generate and publish approved feed
         env:
           GH_TOKEN: ${{ steps.website-token.outputs.token }}
-          RELEASE_READ_TOKEN: ${{ github.token }}
+          PLATFORM: ${{ matrix.platform }}
+          SPARKLE_PRIVATE_KEY: ${{ matrix.platform == 'macos' && secrets.SPARKLE_PRIVATE_KEY || '' }}
         run: |
           gh auth setup-git
-          python3 .github/scripts/update_feeds.py publish
+          git -C build/update-website config user.name 'FuseX Update Publisher'
+          git -C build/update-website config user.email 'fusex-updates@users.noreply.github.com'
+          if [ "$PLATFORM" = macos ]; then
+            test -n "$SPARKLE_PRIVATE_KEY"
+            printf '%s\n' "$SPARKLE_PRIVATE_KEY" | make -f Makefile.darwin appcast-push \
+              FUSEX_VERSION="$RELEASE_TAG" APPCAST_PUSH_DIR=build/update-website \
+              APPCAST_ARCHIVE="build/update-assets/FuseX-${RELEASE_TAG}.dmg" \
+              SPARKLE_GENERATE_APPCAST="$PWD/build/sparkle/bin/generate_appcast" \
+              SPARKLE_ED_KEY_FILE=-
+          else
+            PACKAGE_VERSION="$RELEASE_TAG" bash data/win32/generate-appcast.sh \
+              "build/update-assets/fusex-${RELEASE_TAG}-windows-x64-setup.exe"
+            make -f Makefile.darwin appcast-publish FUSEX_VERSION="$RELEASE_TAG" \
+              APPCAST_DIR=build/appcast-windows APPCAST_PUSH_DIR=build/update-website \
+              APPCAST_PUSH_PATH=updates/windows/appcast.xml
+          fi

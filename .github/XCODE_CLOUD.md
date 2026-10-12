@@ -85,6 +85,12 @@ the Apple build ID saved in the failed run's summary / `xcode-cloud-output`
 artifact to resume. Enable `publish` to add assets to the release; leave it
 disabled to validate and download artifacts without publishing.
 
+The worker preserves the configured workflow ID's casing and uses the exact
+resource ID returned by Apple. If a direct workflow lookup returns 404, it
+lists products and workflows visible to the API key and matches only the
+configured UUID. If no match is visible, check the workflow URL and the API
+key's Apple team, issuer, and Xcode Cloud access; no build is started.
+
 The worker accepts only a `STAPLED_NOTARIZED_ARCHIVE`, checks the Apple
 workflow and source commit, and verifies version, build number, code
 signature, stapling, Gatekeeper assessment, and both arm64/x86_64 slices before

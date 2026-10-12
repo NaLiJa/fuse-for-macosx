@@ -26,7 +26,10 @@ def main():
     subprocess.run(["codesign", "--verify", "--deep", "--strict", "--verbose=2", str(app)], check=True)
     subprocess.run(["xcrun", "stapler", "validate", str(app)], check=True)
     subprocess.run(["spctl", "--assess", "--type", "execute", "--verbose=2", str(app)], check=True)
-    subprocess.run(["lipo", "-verify_arch", "arm64", "x86_64", str(app / "Contents/MacOS/FuseX")], check=True)
+    architectures = set(subprocess.check_output(
+        ["lipo", "-archs", str(app / "Contents/MacOS/FuseX")], text=True).split())
+    if not {"arm64", "x86_64"}.issubset(architectures):
+        raise ValueError(f"App must contain arm64 and x86_64; found {sorted(architectures)}")
     Path("dist").mkdir(exist_ok=True)
     subprocess.run(["ditto", str(app), "dist/FuseX.app"], check=True)
     print(f"Validated notarized FuseX {info['CFBundleShortVersionString']} ({info['CFBundleVersion']})")

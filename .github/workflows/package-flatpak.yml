@@ -32,6 +32,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/fusex-packaging"
           cp .github/builds/linux/org.speccytools.FuseX.json "$RUNNER_TEMP/fusex-packaging/"
+          cp .github/scripts/flatpak_metadata.py "$RUNNER_TEMP/fusex-packaging/"
       - name: Check out source
         uses: actions/checkout@v7
         with:
@@ -45,7 +46,9 @@ jobs:
       - name: Stamp release version
         env:
           RELEASE_TAG: ${{ inputs.version }}
-        run: python3 fusepb/ci_scripts/release_version.py --tag "$RELEASE_TAG"
+        run: |
+          python3 fusepb/ci_scripts/release_version.py --tag "$RELEASE_TAG"
+          python3 "$RUNNER_TEMP/fusex-packaging/flatpak_metadata.py" --version "$RELEASE_TAG"
 
       - name: Build package
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6

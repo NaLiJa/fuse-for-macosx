@@ -34,8 +34,10 @@ The protected GitHub environment `macos-release` needs:
 
 - Secrets `APP_STORE_CONNECT_API_KEY` (full `.p8` contents),
   `APP_STORE_CONNECT_KEY_ID`, and `APP_STORE_CONNECT_ISSUER_ID`.
-- Variable `XCODE_CLOUD_WORKFLOW_ID`:
-  `528DCA26-4074-471F-A83B-D477B47DC2F0`.
+- Optional variable `XCODE_CLOUD_WORKFLOW_ID` to override the confirmed default
+  `528DCA26-4074-471F-A83B-D477B47DC2F0`. The ID is public configuration;
+  the workflow also accepts it from an existing secret of the same name.
+  Apple authentication secrets remain required.
 - Required owner approval and deployment branch limited to **main**.
 
 Do not grant the environment access to all tags. The tag workflow has no Apple
@@ -74,6 +76,9 @@ work. Create a new tag on the merged source; old release tags lack the new
 hook. Never move an existing published tag to try the pipeline.
 
 `Release FuseX` also supports manual dispatch with an existing release tag.
+Select **main** to use updated workflow instructions. Linux uses the packaging
+manifest from that workflow revision while building the exact tagged source;
+this permits packaging fixes without moving an existing tag.
 For a Mac-only retry, run `macOS release (Xcode Cloud)` on **main** with
 `source_ref=refs/tags/<tag>`. Leave `build_run_id` blank for a new build, or use
 the Apple build ID saved in the failed run's summary / `xcode-cloud-output`

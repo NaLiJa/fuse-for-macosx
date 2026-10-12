@@ -55,7 +55,9 @@ jobs:
         run: python -m pip install 'PyJWT[crypto]==2.10.1'
       - name: Start or resume Xcode Cloud
         env:
-          XCODE_CLOUD_WORKFLOW_ID: ${{ vars.XCODE_CLOUD_WORKFLOW_ID }}
+          # The workflow ID is public configuration, not an Apple credential.
+          # Accept either existing settings location, with the confirmed ID as default.
+          XCODE_CLOUD_WORKFLOW_ID: ${{ vars.XCODE_CLOUD_WORKFLOW_ID || secrets.XCODE_CLOUD_WORKFLOW_ID || '528DCA26-4074-471F-A83B-D477B47DC2F0' }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}

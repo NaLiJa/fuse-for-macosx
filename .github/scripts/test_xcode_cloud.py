@@ -1,8 +1,11 @@
 """Regression checks for release provenance and artifact selection."""
 
 import unittest
+import contextlib
+import io
+from unittest.mock import patch
 
-from xcode_cloud import notarized_artifact, start_build, verify_run, wait_for_run
+from xcode_cloud import main, notarized_artifact, start_build, verify_run, wait_for_run, validated_workflow_id
 
 
 class FakeAPI:
@@ -28,6 +31,21 @@ def run(sha="a" * 40, status="SUCCEEDED", workflow="workflow"):
 
 
 class CloudTests(unittest.TestCase):
+    def test_workflow_uuid_is_normalized(self):
+        self.assertEqual(validated_workflow_id(' 528DCA26-4074-471F-A83B-D477B47DC2F0 '),
+                         '528dca26-4074-471f-a83b-d477b47dc2f0')
+
+    def test_missing_or_invalid_workflow_fails_before_api_request(self):
+        for value in ('', '  ', 'not-a-workflow-id'):
+            with self.subTest(value=value), patch.dict('os.environ', {'XCODE_CLOUD_WORKFLOW_ID': value}), \
+                    patch('sys.argv', ['xcode_cloud.py', '--ref', 'refs/tags/1.10.0-fusex-0.3', '--sha', 'a' * 40]), \
+                    patch('xcode_cloud.AppleAPI') as api, contextlib.redirect_stderr(io.StringIO()) as error:
+                with self.assertRaises(SystemExit) as exited:
+                    main()
+                self.assertEqual(exited.exception.code, 2)
+                self.assertIn('XCODE_CLOUD_WORKFLOW_ID', error.getvalue())
+                api.assert_not_called()
+
     def test_mismatched_commit_or_workflow_cannot_be_released(self):
         for build in (run(sha="b" * 40), run(workflow="other")):
             with self.assertRaises(ValueError):

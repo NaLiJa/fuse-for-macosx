@@ -1,0 +1,53 @@
+name: Package for Linux (Flatpak)
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      source_sha:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha }}
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Stamp release version
+        env:
+          RELEASE_TAG: ${{ inputs.version }}
+        run: python3 fusepb/ci_scripts/release_version.py --tag "$RELEASE_TAG"
+
+      - name: Build package
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: FuseX-${{ inputs.version }}.flatpak
+          manifest-path: .github/builds/linux/org.speccytools.FuseX.json
+          upload-artifact: false
+          cache-key: flatpak-builder-${{ github.sha }}
+
+      - name: Checksum Linux bundle
+        run: sha256sum "FuseX-${{ inputs.version }}.flatpak" > SHA256SUMS-linux.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: fusex-linux
+          path: |
+            FuseX-*.flatpak
+            SHA256SUMS-linux.txt
+          if-no-files-found: error

@@ -1,0 +1,104 @@
+name: Release FuseX
+
+on:
+  push:
+    tags: ['**']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, e.g. 1.10.0-fusex-0.2
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.source.outputs.tag }}
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve release tag
+        id: source
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os, subprocess, sys
+          sys.path.insert(0, 'fusepb/ci_scripts')
+          from release_version import release_version
+          tag = release_version(os.environ['RELEASE_TAG'])
+          sha = subprocess.check_output(['git', 'rev-parse', '--verify', '--end-of-options', f'refs/tags/{tag}^{{commit}}'], text=True).strip()
+          subprocess.run(['git', 'merge-base', '--is-ancestor', sha, 'origin/main'], check=True)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'tag={tag}\nsha={sha}\n')
+          PY
+
+  windows:
+    needs: source
+    uses: ./.github/workflows/package-windows-x64.yml
+    with:
+      version: ${{ needs.source.outputs.tag }}
+      source_sha: ${{ needs.source.outputs.sha }}
+
+  linux:
+    needs: source
+    uses: ./.github/workflows/package-flatpak.yml
+    with:
+      version: ${{ needs.source.outputs.tag }}
+      source_sha: ${{ needs.source.outputs.sha }}
+
+  macos:
+    name: Dispatch protected macOS workflow
+    needs: source
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Request independent macOS release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.source.outputs.tag }}
+        run: |
+          gh workflow run macos_cloud_release.yml --ref main \
+            -f source_ref="refs/tags/$RELEASE_TAG" -f publish=true
+
+  publish:
+    name: Attach each successful platform independently
+    if: always() && needs.source.result == 'success'
+    needs: [source, windows, linux]
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows, linux]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        if: (matrix.platform == 'windows' && needs.windows.result == 'success') || (matrix.platform == 'linux' && needs.linux.result == 'success')
+        with:
+          name: ${{ matrix.platform == 'windows' && 'fusex-windows-x64' || 'fusex-linux' }}
+          path: release-assets
+      - name: Upload available platform assets
+        if: (matrix.platform == 'windows' && needs.windows.result == 'success') || (matrix.platform == 'linux' && needs.linux.result == 'success')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.source.outputs.tag }}
+        run: python3 .github/scripts/release_upload.py "$RELEASE_TAG" release-assets

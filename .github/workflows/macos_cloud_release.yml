@@ -1,0 +1,134 @@
+name: macOS release (Xcode Cloud)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'Release tag: refs/tags/1.10.0-fusex-0.2'
+        required: true
+        type: string
+      build_run_id:
+        description: Existing Apple build ID to resume (blank starts a clean build)
+        default: ''
+        type: string
+      publish:
+        description: Attach the DMG to a GitHub draft release
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-cloud-release
+  cancel-in-progress: false
+
+jobs:
+  cloud:
+    name: Request notarized macOS build
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    if: github.ref == 'refs/heads/main'
+    environment: macos-release
+    outputs:
+      version: ${{ steps.source.outputs.version }}
+      tag: ${{ steps.source.outputs.tag }}
+      tooling_sha: ${{ steps.tooling.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - id: tooling
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Validate reviewed source and release version
+        id: source
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          python3 .github/scripts/xcode_cloud_source.py
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install API authentication support
+        run: python -m pip install 'PyJWT[crypto]==2.10.1'
+      - name: Start or resume Xcode Cloud
+        env:
+          XCODE_CLOUD_WORKFLOW_ID: ${{ vars.XCODE_CLOUD_WORKFLOW_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+        run: |
+          python .github/scripts/xcode_cloud.py \
+            --ref "$SOURCE_REF" --sha "$SOURCE_SHA" --resume "$BUILD_RUN_ID"
+      - name: Preserve build ID and downloaded archive
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: xcode-cloud-output
+          path: cloud-output/
+          if-no-files-found: ignore
+
+  package:
+    name: Validate app and package DMG
+    needs: cloud
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.cloud.outputs.tooling_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v7
+        with:
+          name: xcode-cloud-output
+          path: cloud-output
+      - name: Extract and validate notarized app
+        env:
+          RELEASE_VERSION: ${{ needs.cloud.outputs.version }}
+        run: |
+          python3 .github/scripts/xcode_cloud_package.py
+      - name: Package existing app
+        env:
+          RELEASE_VERSION: ${{ needs.cloud.outputs.version }}
+        run: |
+          brew install create-dmg
+          make -f Makefile.darwin dmg DMG_NAME="FuseX-${RELEASE_VERSION}.dmg"
+          cp cloud-output/build.json macos-build.json
+          shasum -a 256 "FuseX-${RELEASE_VERSION}.dmg" > "FuseX-${RELEASE_VERSION}.dmg.sha256"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: fusex-macos
+          path: |
+            FuseX-*.dmg
+            FuseX-*.dmg.sha256
+            macos-build.json
+          if-no-files-found: error
+
+  publish:
+    name: Attach macOS assets to draft release
+    if: inputs.publish
+    needs: [cloud, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.cloud.outputs.tooling_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v7
+        with:
+          name: fusex-macos
+          path: release-assets
+      - name: Upload macOS assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.cloud.outputs.tag }}
+        run: |
+          python3 .github/scripts/release_upload.py "$RELEASE_TAG" release-assets

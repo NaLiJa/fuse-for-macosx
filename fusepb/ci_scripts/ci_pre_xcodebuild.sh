@@ -6,6 +6,8 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 cd "${CI_PRIMARY_REPOSITORY_PATH:?Xcode Cloud repository path is required}"
 
+python3 fusepb/ci_scripts/release_version.py
+
 # Generate sources before Xcode plans compilation in a clean checkout.
 make -C fusepb all
 

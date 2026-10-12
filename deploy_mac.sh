@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Build both the Spectranext-ready and stock FuseX macOS distributions.
+# Build the stock FuseX macOS distributions.
 # Xcode uses the signing team and identities configured in FuseX.xcodeproj.
 # Set NOTARIZE=0 to package signed local builds without submitting to Apple.
 
@@ -9,7 +9,6 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_DIR="$SCRIPT_DIR/fusepb"
 readonly PROJECT_PATH="$PROJECT_DIR/FuseX.xcodeproj"
-readonly SETTINGS_PATH="$SCRIPT_DIR/settings.dat"
 readonly BUILD_DIR="$SCRIPT_DIR/build"
 readonly DIST_APP_PATH="$SCRIPT_DIR/dist/FuseX.app"
 readonly APPCAST_REPOSITORY="$SCRIPT_DIR/../speccytools.github.io"
@@ -76,20 +75,6 @@ if [[ "$NOTARIZE" != "0" && "$NOTARIZE" != "1" ]]; then
   echo "Error: NOTARIZE must be 0 or 1." >&2
   exit 1
 fi
-
-make_spectranext_settings() {
-  restore_settings
-
-  perl -pi -e \
-    's/^spectranet,[ \t]*boolean,[ \t]*[01][ \t]*$/spectranet, boolean, 1/; s/^start_machine,[ \t]*string,[ \t]*"[^"]*",,[ \t]*'"'"'m'"'"',[ \t]*machine[ \t]*$/start_machine, string, "128",, '"'"'m'"'"', machine/' \
-    "$SETTINGS_PATH"
-
-  if ! grep -Fqx 'spectranet, boolean, 1' "$SETTINGS_PATH" || \
-     ! grep -Fqx 'start_machine, string, "128",, '\''m'\'', machine' "$SETTINGS_PATH"; then
-    echo "Error: failed to apply the Spectranext defaults to settings.dat." >&2
-    exit 1
-  fi
-}
 
 clean_xcode_project() {
   echo "==> Cleaning FuseX.xcodeproj"
@@ -227,16 +212,8 @@ readonly FUSEX_VERSION
 mkdir -p "$BUILD_DIR"
 
 echo "==> Building FuseX $FUSEX_VERSION distributions"
-make_spectranext_settings
-clean_xcode_project
-
-create_archive FuseX-spectranext
-spectranext_archive="$CREATED_ARCHIVE_PATH"
-export_distribution_app "$spectranext_archive" spectranext
-make_dmg "FuseX-spectranext-${FUSEX_VERSION}.dmg"
-
-echo "==> Restoring stock FuseX settings"
 restore_settings
+clean_xcode_project
 
 create_archive FuseX
 stock_archive="$CREATED_ARCHIVE_PATH"
@@ -245,6 +222,5 @@ make_dmg "FuseX-${FUSEX_VERSION}.dmg"
 generate_appcast
 
 echo "==> Deployment complete"
-echo "    $SCRIPT_DIR/FuseX-spectranext-${FUSEX_VERSION}.dmg"
 echo "    $SCRIPT_DIR/FuseX-${FUSEX_VERSION}.dmg"
 echo "    $APPCAST_DESTINATION"

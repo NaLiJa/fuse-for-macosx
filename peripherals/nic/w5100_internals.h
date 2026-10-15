@@ -60,6 +60,7 @@ typedef enum w5100_socket_protocol {
   W5100_SOCKET_PROTOCOL_TCP = 0x00,
   W5100_SOCKET_PROTOCOL_TLS = 0xf0,
   W5100_SOCKET_PROTOCOL_SSH = 0xf1,
+  W5100_SOCKET_PROTOCOL_GRE_TCP = 0xf2,
 } w5100_socket_protocol;
 
 enum w5100_socket_registers {
@@ -99,6 +100,9 @@ enum w5100_socket_registers {
 typedef struct nic_w5100_socket_t {
 
   int id; /* For debug use only */
+  uint32_t generation; /* OPEN/close epochs protect matchmaking callbacks. */
+  int match_udp, match_paused;
+  libspectrum_byte match_ip[4], match_port[2];
 
   /* W5100 properties */
 
@@ -165,19 +169,62 @@ struct nic_w5100_t {
   compat_socket_selfpipe_t *selfpipe; /* Device for waking I/O thread */
 };
 
+/**
+ * Initialize caller-owned socket storage and its mutex for index which.
+ * Call before using the slot; pair with nic_w5100_socket_end on shutdown.
+ */
 void nic_w5100_socket_init( nic_w5100_socket_t *socket, int which );
+/**
+ * Reset/close the slot's active backend and destroy its mutex.
+ * Call after other threads stop using socket; does not free caller-owned storage.
+ */
 void nic_w5100_socket_end( nic_w5100_socket_t *socket );
 
+/**
+ * Reset a slot, close its host connections/wrappers, and invalidate its generation.
+ * May coordinate with matchmaking cleanup. Acquires the slot mutex internally;
+ * do not call while holding it. Socket storage remains caller-owned.
+ */
 void nic_w5100_socket_reset( nic_w5100_socket_t *socket );
 
+/**
+ * Read one emulated socket register at reg from self.
+ * Returns the register byte; reg uses the W5100 socket-register address space.
+ * Acquires the slot mutex internally; caller must not already hold it.
+ */
 libspectrum_byte nic_w5100_socket_read( nic_w5100_t *self, libspectrum_word reg );
+/**
+ * Write byte b to an emulated socket register at reg in self.
+ * May dispatch socket commands; acquires the slot mutex internally.
+ * Caller must not already hold it. No ownership of self is transferred.
+ */
 void nic_w5100_socket_write( nic_w5100_t *self, libspectrum_word reg, libspectrum_byte b );
 
+/**
+ * Read one byte from self's W5100 receive-buffer address reg.
+ * Caller serializes socket access; this read alone does not return receive credit.
+ */
 libspectrum_byte nic_w5100_socket_read_rx_buffer( nic_w5100_t *self, libspectrum_word reg );
+/**
+ * Store byte b at self's W5100 transmit-buffer address reg.
+ * Caller serializes socket access. Does not transmit until the SEND command.
+ */
 void nic_w5100_socket_write_tx_buffer( nic_w5100_t *self, libspectrum_word reg, libspectrum_byte b );
 
+/**
+ * Add a live slot's relevant descriptors to caller-owned select fd sets and
+ * update *max_fd. Does not clear the sets or perform select. Called by the
+ * NIC I/O loop, acquiring the slot mutex internally; do not already hold it.
+ * self/socket remain caller-owned.
+ */
 void nic_w5100_socket_add_to_sets( nic_w5100_t *self, nic_w5100_socket_t *socket, fd_set *readfds,
   fd_set *writefds, int *max_fd );
+/**
+ * Process select-ready readfds/writefds for a slot, moving data and updating
+ * W5100 buffers/state. Called by the NIC I/O loop; acquires the slot mutex
+ * internally, so do not already hold it. May perform backend I/O; owns no
+ * new reference to self/socket.
+ */
 void nic_w5100_socket_process_io( nic_w5100_t *self, nic_w5100_socket_t *socket, fd_set readfds,
   fd_set writefds );
 
@@ -186,10 +233,22 @@ void nic_w5100_socket_process_io( nic_w5100_t *self, nic_w5100_socket_t *socket,
 /* Define this to spew debugging info to stdout */
 #define W5100_DEBUG 0
 
+/**
+ * Emit a printf-style W5100 diagnostic when debug logging is enabled.
+ * format and arguments are borrowed for the call; no device state changes.
+ */
 void nic_w5100_debug( const char *format, ... )
      GCC_PRINTF( 1, 2 );
+/**
+ * Emit a W5100 diagnostic using a borrowed format and va_list.
+ * Logging follows the debug setting; caller manages va_list lifetime.
+ */
 void nic_w5100_vdebug( const char *format, va_list ap )
      GCC_PRINTF( 1, 0 );
+/**
+ * Report a formatted W5100 error at the supplied UI severity.
+ * format/arguments are borrowed; severity uses the existing Fuse UI error levels.
+ */
 void nic_w5100_error( int severity, const char *format, ... )
      GCC_PRINTF( 2, 3 );
 

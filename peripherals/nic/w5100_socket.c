@@ -96,6 +96,7 @@ static void
 w5100_socket_init_common( nic_w5100_socket_t *socket )
 {
   socket->fd = compat_socket_invalid;
+  socket->match_udp = socket->match_paused = 0;
   socket->protocol = W5100_SOCKET_PROTOCOL_TCP;
   socket->backend_protocol = W5100_SOCKET_PROTOCOL_TCP;
   socket->tls_socket = NULL;
@@ -111,6 +112,7 @@ void
 nic_w5100_socket_init( nic_w5100_socket_t *socket, int which )
 {
   socket->id = which;
+  socket->generation = 0;
   w5100_socket_init_common( socket );
   pthread_mutex_init( &socket->lock, NULL );
 }
@@ -147,6 +149,8 @@ w5100_socket_release_lock( nic_w5100_socket_t *socket )
 static void
 w5100_socket_clean( nic_w5100_socket_t *socket )
 {
+  socket->generation++;
+  socket->match_udp = socket->match_paused = 0;
   socket->ir = 0;
   memset( socket->port, 0, sizeof( socket->port ) );
   memset( socket->dip, 0, sizeof( socket->dip ) );
@@ -252,7 +256,8 @@ w5100_socket_open( nic_w5100_socket_t *socket_obj )
     socket_obj->protocol = backend_selector;
     socket_obj->backend_protocol = W5100_SOCKET_PROTOCOL_TCP;
     if( tcp && ( backend_selector == W5100_SOCKET_PROTOCOL_TLS ||
-                 backend_selector == W5100_SOCKET_PROTOCOL_SSH ) )
+                 backend_selector == W5100_SOCKET_PROTOCOL_SSH ||
+                 backend_selector == W5100_SOCKET_PROTOCOL_GRE_TCP ) )
       socket_obj->backend_protocol = backend_selector;
 
     socket_obj->fd = socket( AF_INET, type, socket_protocol );
@@ -337,6 +342,10 @@ w5100_socket_listen( nic_w5100_t *self, nic_w5100_socket_t *socket )
 static void
 w5100_socket_connect( nic_w5100_t *self, nic_w5100_socket_t *socket )
 {
+  if( socket->backend_protocol == W5100_SOCKET_PROTOCOL_GRE_TCP ) {
+    socket->ir |= 1 << 3;
+    return; /* Only controller handoff can establish this backend. */
+  }
   if( socket->state == W5100_SOCKET_STATE_INIT ) {
     struct sockaddr_in sa;
     uint16_t port;
@@ -429,7 +438,7 @@ w5100_socket_connect( nic_w5100_t *self, nic_w5100_socket_t *socket )
 
     /* Perform TLS handshake if TLS socket was allocated (blocking) */
     if( socket->tls_socket ) {
-      int ret = tls_connect( socket->tls_socket );
+      int ret = tls_connect( socket->tls_socket, 30 );
       if( ret != 0 ) {
         nic_w5100_error( UI_ERROR_ERROR,
           "w5100: TLS handshake failed for socket %d: %d\n", socket->id, ret );
@@ -490,6 +499,7 @@ w5100_socket_discon( nic_w5100_t *self, nic_w5100_socket_t *socket )
 static void
 w5100_socket_close( nic_w5100_t *self, nic_w5100_socket_t *socket )
 {
+  socket->generation++;
   if( socket->tls_socket ) {
     tls_close( socket->tls_socket );
     tls_socket_free( socket->tls_socket );
@@ -519,6 +529,10 @@ w5100_socket_send( nic_w5100_t *self, nic_w5100_socket_t *socket )
       if( w5100_socket_bind_port( self, socket ) )
         return;
 
+    if( socket->datagram_count >= 0x20 ) {
+      socket->ir |= 1 << 4;
+      return; /* The register free-space guard prevents nonempty overrun. */
+    }
     socket->datagram_lengths[socket->datagram_count++] =
       socket->tx_wr - socket->last_send;
     socket->last_send = socket->tx_wr;
@@ -632,7 +646,8 @@ nic_w5100_socket_read( nic_w5100_t *self, libspectrum_word reg )
       break;
     case W5100_SOCKET_TX_FSR0: case W5100_SOCKET_TX_FSR1:
       reg_offset = socket_reg - W5100_SOCKET_TX_FSR0;
-      fsr = 0x0800 - (socket->tx_wr - socket->tx_rr);
+      fsr = (socket->state == W5100_SOCKET_STATE_UDP && socket->datagram_count >= 0x20)
+        ? 0 : 0x0800 - (socket->tx_wr - socket->tx_rr);
       b = ( fsr >> ( 8 * ( 1 - reg_offset ) ) ) & 0xff;
       nic_w5100_debug( "w5100: reading 0x%02x from S%d_TX_FSR%d\n", b, socket->id, reg_offset );
       break;
@@ -757,12 +772,12 @@ nic_w5100_socket_add_to_sets( nic_w5100_t *self, nic_w5100_socket_t *socket, fd_
 {
   w5100_socket_acquire_lock( socket );
 
-  if( socket->fd != compat_socket_invalid ) {
+  if( socket->fd != compat_socket_invalid && !socket->match_paused ) {
     /* We can process a UDP read if we're in a UDP state and there are at least
        9 bytes free in our buffer (8 byte UDP header and 1 byte of actual
        data). */
     int udp_read = socket->state == W5100_SOCKET_STATE_UDP &&
-      0x800 - socket->rx_rsr >= 9;
+      0x800 - socket->rx_rsr >= (socket->match_udp ? 1208 : 9);
     /* We can process a TCP read if we're in the established state and have
        any room in our buffer (no header necessary for TCP). */
     int tcp_read = socket->state == W5100_SOCKET_STATE_ESTABLISHED &&
@@ -828,6 +843,7 @@ w5100_socket_process_read( nic_w5100_t *self, nic_w5100_socket_t *socket )
 {
   libspectrum_byte buffer[0x800];
   int bytes_free = 0x800 - socket->rx_rsr;
+  if( socket->match_udp && bytes_free < 1208 ) return;
   ssize_t bytes_read;
   struct sockaddr_in sa;
 
@@ -841,8 +857,10 @@ w5100_socket_process_read( nic_w5100_t *self, nic_w5100_socket_t *socket )
     bytes_read = recvfrom( socket->fd, (char*)buffer + 8, bytes_free - 8, 0,
       (struct sockaddr*)&sa, &sa_length );
     
+    if( socket->match_udp && (memcmp(&sa.sin_addr.s_addr,socket->match_ip,4) ||
+        memcmp(&sa.sin_port,socket->match_port,2) || bytes_read > 1200) ) return;
     /* Process DNS responses from port 53 for reverse DNS cache */
-    if( bytes_read > 0 && ntohs( sa.sin_port ) == 53 ) {
+    if( !socket->match_udp && bytes_read > 0 && ntohs( sa.sin_port ) == 53 ) {
       dns_answers_process_udp( (const uint8_t*)(buffer + 8), (uint16_t)bytes_read );
     }
   }
@@ -933,6 +951,17 @@ w5100_socket_process_udp_write( nic_w5100_socket_t *socket )
   memcpy( &sa.sin_port, socket->dport, 2 );
   memcpy( &sa.sin_addr.s_addr, socket->dip, 4 );
 
+  if( socket->match_udp ) {
+    static const unsigned char marker[4] = {198,18,0,1};
+    if( length > 1200 || (memcmp(socket->dip,marker,4) &&
+        (memcmp(socket->dip,socket->match_ip,4) || memcmp(socket->dport,socket->match_port,2))) ) {
+      socket->ir |= 1 << 3;
+      socket->write_pending = 0;
+      return;
+    }
+    memcpy(&sa.sin_addr.s_addr,socket->match_ip,4);
+    memcpy(&sa.sin_port,socket->match_port,2);
+  }
   bytes_sent = sendto( socket->fd, (const char*)data, length, 0, (struct sockaddr*)&sa, sizeof(sa) );
   nic_w5100_debug( "w5100: sent 0x%03x bytes of 0x%03x to UDP socket %d\n",
                    (int)bytes_sent, length, socket->id );
@@ -1010,10 +1039,10 @@ nic_w5100_socket_process_io( nic_w5100_t *self, nic_w5100_socket_t *socket, fd_s
 
   /* Process only if we're an open socket, and we haven't been closed and
      re-opened since the select() started */
-  if( socket->fd != compat_socket_invalid && socket->ok_for_io ) {
+  if( socket->fd != compat_socket_invalid && socket->ok_for_io && !socket->match_paused ) {
     /* Handle TLS handshake if needed */
     if( socket->tls_socket && !socket->tls_socket->handshake_complete ) {
-      int ret = tls_connect( socket->tls_socket );
+      int ret = tls_connect( socket->tls_socket, 30 );
       if( ret == 0 ) {
         /* Handshake complete */
         socket->tls_socket->handshake_complete = 1;

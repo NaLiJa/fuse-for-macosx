@@ -404,6 +404,30 @@
 		D19300010000000000000034 /* monotonic.c in Sources */ = {isa = PBXBuildFile; fileRef = D19300010000000000000033 /* monotonic.c */; };
 		D19300010000000000000036 /* file.c in Sources */ = {isa = PBXBuildFile; fileRef = D19300010000000000000035 /* file.c */; };
 		FE9A0101301F000000000011 /* controller_job.c in Sources */ = {isa = PBXBuildFile; fileRef = FE9A0102301F000000000011 /* controller_job.c */; };
+		661C7A88414893A413390196 /* match.c in Sources */ = {isa = PBXBuildFile; fileRef = 7E93F9AA0F1BCDF3EFCCE9BB /* match.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		8D95F654FC053B6B7C06CD22 /* match_compat.c in Sources */ = {isa = PBXBuildFile; fileRef = 8AEEC1EF46688F9049B71CBC /* match_compat.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		3FC5C7DD49A03F4B69319C62 /* stun.c in Sources */ = {isa = PBXBuildFile; fileRef = CC9DF714B0D64E53BFF488E8 /* stun.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		018EE51C43AD87C3399C888B /* gre.c in Sources */ = {isa = PBXBuildFile; fileRef = 3F032A143702B8E321FF902F /* gre.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		FC85A7DCABB288165480ADF7 /* lwip.c in Sources */ = {isa = PBXBuildFile; fileRef = 8251928CE4CEAE6DCE2B4A14 /* lwip.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		0E0CBDC66433CD1917C93648 /* icmp.c in Sources */ = {isa = PBXBuildFile; fileRef = 9F44FF4BF4F31A4E539F0467 /* icmp.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		88073CD9E5832F741C097669 /* lwip/src/core/def.c in Sources */ = {isa = PBXBuildFile; fileRef = 31B4B75BC610965B68EFA094 /* lwip/src/core/def.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		4E5F1CFEA86B73DC8A532847 /* lwip/src/core/init.c in Sources */ = {isa = PBXBuildFile; fileRef = 987291A8F1F27D663114B415 /* lwip/src/core/init.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		6B74A2CED20FE66D3B4C6B62 /* lwip/src/core/inet_chksum.c in Sources */ = {isa = PBXBuildFile; fileRef = 02841B09DEC0C82BCC74BB0B /* lwip/src/core/inet_chksum.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		1BB095D577CDF09A34990308 /* lwip/src/core/ip.c in Sources */ = {isa = PBXBuildFile; fileRef = FCFD73B9DA505F1323CA85D7 /* lwip/src/core/ip.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		891322300ABE440CC05CCAD3 /* lwip/src/core/mem.c in Sources */ = {isa = PBXBuildFile; fileRef = 0F6FA880F9729FA98821F33F /* lwip/src/core/mem.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		4D3A7E1D0B38EFBB6D58DE35 /* lwip/src/core/memp.c in Sources */ = {isa = PBXBuildFile; fileRef = 7BCFB19AD17B8E673ADC4A5A /* lwip/src/core/memp.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		45127BE76F845EE4F6F98633 /* lwip/src/core/netif.c in Sources */ = {isa = PBXBuildFile; fileRef = F091D01E8BDA2A327A45437D /* lwip/src/core/netif.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		222C1F204DED5BA0A0BB76E5 /* lwip/src/core/pbuf.c in Sources */ = {isa = PBXBuildFile; fileRef = 3ACAFE460A5EEB6EC9EA5FDE /* lwip/src/core/pbuf.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		61BB2B0D5DC4EBF6DEF3D72A /* lwip/src/core/raw.c in Sources */ = {isa = PBXBuildFile; fileRef = B9453328BFDD05C8E0584C3B /* lwip/src/core/raw.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		7A67E3D4CCA3B31E75BB8893 /* lwip/src/core/stats.c in Sources */ = {isa = PBXBuildFile; fileRef = 321EE14F289E9B3D476187C3 /* lwip/src/core/stats.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		2895309C86E715CD0584B716 /* lwip/src/core/sys.c in Sources */ = {isa = PBXBuildFile; fileRef = C0675270CF7542159F536AC5 /* lwip/src/core/sys.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		5806028C0A863C156E7ECA7C /* lwip/src/core/tcp.c in Sources */ = {isa = PBXBuildFile; fileRef = DBF0BDBE940EE876E30E6B0A /* lwip/src/core/tcp.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		A22108B84AEE6C1F3432BDFA /* lwip/src/core/tcp_in.c in Sources */ = {isa = PBXBuildFile; fileRef = 9EC13357E0F8A8AEFCA204DD /* lwip/src/core/tcp_in.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		422FB319EA8D6F5A52E62D78 /* lwip/src/core/tcp_out.c in Sources */ = {isa = PBXBuildFile; fileRef = 88604156A97771479B9717E8 /* lwip/src/core/tcp_out.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		D0749CF621841D0CB175C56F /* lwip/src/core/timeouts.c in Sources */ = {isa = PBXBuildFile; fileRef = 5C4AAFB35CF450DE1A2C9330 /* lwip/src/core/timeouts.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		57F208713CC03B66F5B5304F /* lwip/src/core/ipv4/icmp.c in Sources */ = {isa = PBXBuildFile; fileRef = 0BDC28F98A4B68CC7B1B1537 /* lwip/src/core/ipv4/icmp.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		25C447B674F4B4B63CE08F9D /* lwip/src/core/ipv4/ip4.c in Sources */ = {isa = PBXBuildFile; fileRef = E867FC7A4000F0543707890B /* lwip/src/core/ipv4/ip4.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
+		6C24774FB239DFA10728C966 /* lwip/src/core/ipv4/ip4_addr.c in Sources */ = {isa = PBXBuildFile; fileRef = 7BE723E9D0E2369812BF04E1 /* lwip/src/core/ipv4/ip4_addr.c */; settings = {COMPILER_FLAGS = "-std=gnu11"; }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -1076,6 +1100,38 @@
 		D19300010000000000000035 /* file.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = file.c; path = file.c; sourceTree = "<group>"; };
 		FE9A0102301F000000000011 /* controller_job.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = controller_job.c; sourceTree = "<group>"; };
 		FE9A0102301F000000000012 /* controller_job.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = controller_job.h; sourceTree = "<group>"; };
+		7E93F9AA0F1BCDF3EFCCE9BB /* match.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../peripherals/nic/match.c"; sourceTree = SOURCE_ROOT; };
+		284FA2C84FD9139D60FB97E1 /* match.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "../peripherals/nic/match.h"; sourceTree = SOURCE_ROOT; };
+		8AEEC1EF46688F9049B71CBC /* match_compat.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../peripherals/nic/match_compat.c"; sourceTree = SOURCE_ROOT; };
+		6EA56A59BCF618FEDC27F149 /* match_compat.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "../peripherals/nic/match_compat.h"; sourceTree = SOURCE_ROOT; };
+		124F67573BFEAB05896EAA24 /* match_layout.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "../peripherals/nic/match_layout.h"; sourceTree = SOURCE_ROOT; };
+		CC9DF714B0D64E53BFF488E8 /* stun.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../peripherals/nic/stun.c"; sourceTree = SOURCE_ROOT; };
+		2269BC8F0121A2B411E836FA /* stun.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "../peripherals/nic/stun.h"; sourceTree = SOURCE_ROOT; };
+		3F032A143702B8E321FF902F /* gre.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../peripherals/nic/gre.c"; sourceTree = SOURCE_ROOT; };
+		10DF69CB1298B96F94451A44 /* gre.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "../peripherals/nic/gre.h"; sourceTree = SOURCE_ROOT; };
+		8251928CE4CEAE6DCE2B4A14 /* lwip.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../peripherals/nic/lwip.c"; sourceTree = SOURCE_ROOT; };
+		9F44FF4BF4F31A4E539F0467 /* icmp.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../peripherals/nic/icmp.c"; sourceTree = SOURCE_ROOT; };
+		4A8C46971C3D8619FACA5519 /* icmp.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "../peripherals/nic/icmp.h"; sourceTree = SOURCE_ROOT; };
+		A50FDF5FE9C1677444AC7AE8 /* match_lwip/lwipopts.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "../peripherals/nic/match_lwip/lwipopts.h"; sourceTree = SOURCE_ROOT; };
+		D28B41AFCD4F1D4AED5E0223 /* match_lwip/arch/cc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "../peripherals/nic/match_lwip/arch/cc.h"; sourceTree = SOURCE_ROOT; };
+		31B4B75BC610965B68EFA094 /* lwip/src/core/def.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/def.c"; sourceTree = SOURCE_ROOT; };
+		987291A8F1F27D663114B415 /* lwip/src/core/init.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/init.c"; sourceTree = SOURCE_ROOT; };
+		02841B09DEC0C82BCC74BB0B /* lwip/src/core/inet_chksum.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/inet_chksum.c"; sourceTree = SOURCE_ROOT; };
+		FCFD73B9DA505F1323CA85D7 /* lwip/src/core/ip.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/ip.c"; sourceTree = SOURCE_ROOT; };
+		0F6FA880F9729FA98821F33F /* lwip/src/core/mem.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/mem.c"; sourceTree = SOURCE_ROOT; };
+		7BCFB19AD17B8E673ADC4A5A /* lwip/src/core/memp.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/memp.c"; sourceTree = SOURCE_ROOT; };
+		F091D01E8BDA2A327A45437D /* lwip/src/core/netif.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/netif.c"; sourceTree = SOURCE_ROOT; };
+		3ACAFE460A5EEB6EC9EA5FDE /* lwip/src/core/pbuf.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/pbuf.c"; sourceTree = SOURCE_ROOT; };
+		B9453328BFDD05C8E0584C3B /* lwip/src/core/raw.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/raw.c"; sourceTree = SOURCE_ROOT; };
+		321EE14F289E9B3D476187C3 /* lwip/src/core/stats.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/stats.c"; sourceTree = SOURCE_ROOT; };
+		C0675270CF7542159F536AC5 /* lwip/src/core/sys.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/sys.c"; sourceTree = SOURCE_ROOT; };
+		DBF0BDBE940EE876E30E6B0A /* lwip/src/core/tcp.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/tcp.c"; sourceTree = SOURCE_ROOT; };
+		9EC13357E0F8A8AEFCA204DD /* lwip/src/core/tcp_in.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/tcp_in.c"; sourceTree = SOURCE_ROOT; };
+		88604156A97771479B9717E8 /* lwip/src/core/tcp_out.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/tcp_out.c"; sourceTree = SOURCE_ROOT; };
+		5C4AAFB35CF450DE1A2C9330 /* lwip/src/core/timeouts.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/timeouts.c"; sourceTree = SOURCE_ROOT; };
+		0BDC28F98A4B68CC7B1B1537 /* lwip/src/core/ipv4/icmp.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/ipv4/icmp.c"; sourceTree = SOURCE_ROOT; };
+		E867FC7A4000F0543707890B /* lwip/src/core/ipv4/ip4.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/ipv4/ip4.c"; sourceTree = SOURCE_ROOT; };
+		7BE723E9D0E2369812BF04E1 /* lwip/src/core/ipv4/ip4_addr.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "../3rdparty/lwip/src/core/ipv4/ip4_addr.c"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1795,6 +1851,7 @@
 		B6E1F24114F7A11C00600EB0 /* nic */ = {
 			isa = PBXGroup;
 			children = (
+				6DC4A9122EF9C1EC004D08D5 /* Matchmaking */,
 				FE9443BB2F881C540059A578 /* engines */,
 				B69BE53D1660E02500C5D0CE /* w5100_internals.h */,
 				B69BE53E1660E02500C5D0CE /* w5100_socket.c */,
@@ -2069,6 +2126,45 @@
 				FE1B00110001000000000001 /* libfusex.dylib */,
 			);
 			name = "Recovered References";
+			sourceTree = "<group>";
+		};
+		6DC4A9122EF9C1EC004D08D5 /* Matchmaking */ = {
+			isa = PBXGroup;
+			children = (
+				7E93F9AA0F1BCDF3EFCCE9BB /* match.c */,
+				284FA2C84FD9139D60FB97E1 /* match.h */,
+				8AEEC1EF46688F9049B71CBC /* match_compat.c */,
+				6EA56A59BCF618FEDC27F149 /* match_compat.h */,
+				124F67573BFEAB05896EAA24 /* match_layout.h */,
+				CC9DF714B0D64E53BFF488E8 /* stun.c */,
+				2269BC8F0121A2B411E836FA /* stun.h */,
+				3F032A143702B8E321FF902F /* gre.c */,
+				10DF69CB1298B96F94451A44 /* gre.h */,
+				8251928CE4CEAE6DCE2B4A14 /* lwip.c */,
+				9F44FF4BF4F31A4E539F0467 /* icmp.c */,
+				4A8C46971C3D8619FACA5519 /* icmp.h */,
+				A50FDF5FE9C1677444AC7AE8 /* match_lwip/lwipopts.h */,
+				D28B41AFCD4F1D4AED5E0223 /* match_lwip/arch/cc.h */,
+				31B4B75BC610965B68EFA094 /* lwip/src/core/def.c */,
+				987291A8F1F27D663114B415 /* lwip/src/core/init.c */,
+				02841B09DEC0C82BCC74BB0B /* lwip/src/core/inet_chksum.c */,
+				FCFD73B9DA505F1323CA85D7 /* lwip/src/core/ip.c */,
+				0F6FA880F9729FA98821F33F /* lwip/src/core/mem.c */,
+				7BCFB19AD17B8E673ADC4A5A /* lwip/src/core/memp.c */,
+				F091D01E8BDA2A327A45437D /* lwip/src/core/netif.c */,
+				3ACAFE460A5EEB6EC9EA5FDE /* lwip/src/core/pbuf.c */,
+				B9453328BFDD05C8E0584C3B /* lwip/src/core/raw.c */,
+				321EE14F289E9B3D476187C3 /* lwip/src/core/stats.c */,
+				C0675270CF7542159F536AC5 /* lwip/src/core/sys.c */,
+				DBF0BDBE940EE876E30E6B0A /* lwip/src/core/tcp.c */,
+				9EC13357E0F8A8AEFCA204DD /* lwip/src/core/tcp_in.c */,
+				88604156A97771479B9717E8 /* lwip/src/core/tcp_out.c */,
+				5C4AAFB35CF450DE1A2C9330 /* lwip/src/core/timeouts.c */,
+				0BDC28F98A4B68CC7B1B1537 /* lwip/src/core/ipv4/icmp.c */,
+				E867FC7A4000F0543707890B /* lwip/src/core/ipv4/ip4.c */,
+				7BE723E9D0E2369812BF04E1 /* lwip/src/core/ipv4/ip4_addr.c */,
+			);
+			name = Matchmaking;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -2348,6 +2444,30 @@
 			buildActionMask = 2147483647;
 			files = (
 				FEC02C9F2EEF65D6008277BA /* spectranext_controller.c in Sources */,
+				661C7A88414893A413390196 /* match.c in Sources */,
+				8D95F654FC053B6B7C06CD22 /* match_compat.c in Sources */,
+				3FC5C7DD49A03F4B69319C62 /* stun.c in Sources */,
+				018EE51C43AD87C3399C888B /* gre.c in Sources */,
+				FC85A7DCABB288165480ADF7 /* lwip.c in Sources */,
+				0E0CBDC66433CD1917C93648 /* icmp.c in Sources */,
+				88073CD9E5832F741C097669 /* lwip/src/core/def.c in Sources */,
+				4E5F1CFEA86B73DC8A532847 /* lwip/src/core/init.c in Sources */,
+				6B74A2CED20FE66D3B4C6B62 /* lwip/src/core/inet_chksum.c in Sources */,
+				1BB095D577CDF09A34990308 /* lwip/src/core/ip.c in Sources */,
+				891322300ABE440CC05CCAD3 /* lwip/src/core/mem.c in Sources */,
+				4D3A7E1D0B38EFBB6D58DE35 /* lwip/src/core/memp.c in Sources */,
+				45127BE76F845EE4F6F98633 /* lwip/src/core/netif.c in Sources */,
+				222C1F204DED5BA0A0BB76E5 /* lwip/src/core/pbuf.c in Sources */,
+				61BB2B0D5DC4EBF6DEF3D72A /* lwip/src/core/raw.c in Sources */,
+				7A67E3D4CCA3B31E75BB8893 /* lwip/src/core/stats.c in Sources */,
+				2895309C86E715CD0584B716 /* lwip/src/core/sys.c in Sources */,
+				5806028C0A863C156E7ECA7C /* lwip/src/core/tcp.c in Sources */,
+				A22108B84AEE6C1F3432BDFA /* lwip/src/core/tcp_in.c in Sources */,
+				422FB319EA8D6F5A52E62D78 /* lwip/src/core/tcp_out.c in Sources */,
+				D0749CF621841D0CB175C56F /* lwip/src/core/timeouts.c in Sources */,
+				57F208713CC03B66F5B5304F /* lwip/src/core/ipv4/icmp.c in Sources */,
+				25C447B674F4B4B63CE08F9D /* lwip/src/core/ipv4/ip4.c in Sources */,
+				6C24774FB239DFA10728C966 /* lwip/src/core/ipv4/ip4_addr.c in Sources */,
 				FEC02CA02EEF65D6008277BA /* spectranext.h in Sources */,
 				FEC02CA12EEF65D6008277BA /* spectranext_controller.h in Sources */,
 				B6D0E1061CFD549200202683 /* usource.c in Sources */,
@@ -2683,6 +2803,10 @@
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_VERSION = "";
 				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/../peripherals/nic/engines",
+					"$(SRCROOT)/../peripherals/nic",
+					"$(SRCROOT)/../peripherals/nic/match_lwip",
+					"$(SRCROOT)/../3rdparty/lwip/src/include",
 					"$(DERIVED_FILE_DIR)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)/audiofile.framework/Headers",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_2)/gcrypt.framework/Headers",
@@ -2757,6 +2881,10 @@
 				GCC_OPTIMIZATION_LEVEL = 3;
 				GCC_VERSION = "";
 				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/../peripherals/nic/engines",
+					"$(SRCROOT)/../peripherals/nic",
+					"$(SRCROOT)/../peripherals/nic/match_lwip",
+					"$(SRCROOT)/../3rdparty/lwip/src/include",
 					"$(DERIVED_FILE_DIR)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)/audiofile.framework/Headers",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_2)/gcrypt.framework/Headers",
@@ -2830,6 +2958,10 @@
 				GCC_OPTIMIZATION_LEVEL = 3;
 				GCC_VERSION = "";
 				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/../peripherals/nic/engines",
+					"$(SRCROOT)/../peripherals/nic",
+					"$(SRCROOT)/../peripherals/nic/match_lwip",
+					"$(SRCROOT)/../3rdparty/lwip/src/include",
 					"$(DERIVED_FILE_DIR)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)/audiofile.framework/Headers",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_2)/gcrypt.framework/Headers",

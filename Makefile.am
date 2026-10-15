@@ -144,6 +144,7 @@ AM_CPPFLAGS += $(MBEDTLS_CFLAGS) $(LIBSSH2_CFLAGS)
 endif
 
 AM_CFLAGS = $(WARN_CFLAGS) $(PTHREAD_CFLAGS)
+AM_CPPFLAGS += -I$(srcdir)/peripherals/nic/engines -I$(srcdir)/peripherals/nic/match_lwip -I$(srcdir)/3rdparty/lwip/src/include -I$(srcdir)/peripherals/nic
 
 noinst_HEADERS = bitmap.h \
 	compat.h \

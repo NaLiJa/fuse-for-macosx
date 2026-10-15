@@ -42,6 +42,7 @@
 #include "memory_pages.h"
 #include "module.h"
 #include "nic/w5100.h"
+#include "nic/match.h"
 #include "periph.h"
 #include "peripherals/expansion_bus.h"
 #include "peripherals/spectranext_esxdos.h"
@@ -79,6 +80,7 @@ static memory_page spectranet_current_map[MEMORY_PAGES_IN_16K];
 static int spectranet_memory_allocated = 0;
 
 static nic_w5100_t *w5100;
+nic_w5100_t *spectranet_match_nic(void) { return w5100; }
 static flash_am29f010_t *flash_rom;
 static char spectranet_rom_path[ PATH_MAX ];
 static libspectrum_dword spectranet_source_rom_hash;
@@ -510,6 +512,11 @@ spectranet_reset( int hard_reset )
     spectranet_hard_reset();
   }
   
+  controller_job_cancel_and_wait();
+  controller_job_poll(0);
+  controller_job_poll(1);
+  match_reset();
+
   // Reset XFS filesystem whenever Spectranet resets (hard or soft)
   // This ensures XFS state is clean on Spectrum reboot
   xfs_reset();
@@ -875,7 +882,9 @@ static void
 spectranet_end( void )
 {
   controller_job_shutdown();
+  match_reset();
   nic_w5100_free( w5100 );
+  w5100 = NULL;
   flash_am29f010_free( flash_rom );
 }
 

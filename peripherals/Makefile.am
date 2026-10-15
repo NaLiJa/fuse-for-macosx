@@ -91,6 +91,30 @@ fuse_SOURCES += \
                 peripherals/nic/engines/jsonpath/matcher.c \
                 peripherals/nic/engines/jsonpath/parser.c \
                 peripherals/nic/engines/parson.c \
+                peripherals/nic/match.c \
+                peripherals/nic/match_compat.c \
+                peripherals/nic/stun.c \
+                peripherals/nic/gre.c \
+                peripherals/nic/lwip.c \
+                peripherals/nic/icmp.c \
+                3rdparty/lwip/src/core/def.c \
+                3rdparty/lwip/src/core/init.c \
+                3rdparty/lwip/src/core/inet_chksum.c \
+                3rdparty/lwip/src/core/ip.c \
+                3rdparty/lwip/src/core/mem.c \
+                3rdparty/lwip/src/core/memp.c \
+                3rdparty/lwip/src/core/netif.c \
+                3rdparty/lwip/src/core/pbuf.c \
+                3rdparty/lwip/src/core/raw.c \
+                3rdparty/lwip/src/core/stats.c \
+                3rdparty/lwip/src/core/sys.c \
+                3rdparty/lwip/src/core/tcp.c \
+                3rdparty/lwip/src/core/tcp_in.c \
+                3rdparty/lwip/src/core/tcp_out.c \
+                3rdparty/lwip/src/core/timeouts.c \
+                3rdparty/lwip/src/core/ipv4/icmp.c \
+                3rdparty/lwip/src/core/ipv4/ip4.c \
+                3rdparty/lwip/src/core/ipv4/ip4_addr.c \
                 peripherals/nic/spectranext_controller.c \
                 peripherals/nic/spectranext_stdout.c \
                 peripherals/fs/xfs.c \
@@ -111,6 +135,14 @@ fuse_SOURCES += \
 endif
 
 noinst_HEADERS += \
+                  peripherals/nic/match.h \
+                  peripherals/nic/match_compat.h \
+                  peripherals/nic/match_layout.h \
+                  peripherals/nic/stun.h \
+                  peripherals/nic/gre.h \
+                  peripherals/nic/icmp.h \
+                  peripherals/nic/match_lwip/lwipopts.h \
+                  peripherals/nic/match_lwip/arch/cc.h \
                   peripherals/dck.h \
                   peripherals/expansion_bus.h \
                   peripherals/if1.h \

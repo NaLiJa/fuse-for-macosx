@@ -55,7 +55,7 @@ void* malloc_allocator(void *arena, void *ptr, size_t oldsz, size_t newsz)
     return NULL;
 }
 
-int sck_http_open(httpc_options_t *os, void **socket_out, void *opts, const char *domain, const unsigned short port, int use_ssl)
+static int sck_http_open_internal(httpc_options_t *os, void **socket_out, void *opts, const char *domain, const unsigned short port, int use_ssl, int bounded)
 {
     (void)os;
     (void)opts;
@@ -96,11 +96,13 @@ int sck_http_open(httpc_options_t *os, void **socket_out, void *opts, const char
     if (os->context)
     {
 #ifdef WIN32
-        DWORD timeout = 10000;
+        DWORD timeout = bounded ? 3000 : 10000;
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof(timeout));
+        if(bounded)setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&timeout, sizeof(timeout));
 #else
-        struct timeval timeout = { .tv_sec = 10, .tv_usec = 0 };
+        struct timeval timeout = { .tv_sec = bounded ? 3 : 10, .tv_usec = 0 };
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+        if(bounded)setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 #endif
     }
 
@@ -109,14 +111,26 @@ int sck_http_open(httpc_options_t *os, void **socket_out, void *opts, const char
     // Pass 0 to get blocking mode, 1 to get non-blocking mode
     compat_socket_blocking_mode(fd, 0);
 
-    // Connect
-    if (connect(fd, result->ai_addr, result->ai_addrlen) == -1)
-    {
-        printf("http: connect failed: %s\n", compat_socket_get_strerror());
+    if(bounded)compat_socket_blocking_mode(fd, 1);
+    ret = connect(fd, result->ai_addr, result->ai_addrlen);
+    if(bounded && ret < 0 && (compat_socket_get_error()==COMPAT_EINPROGRESS ||
+                              compat_socket_get_error()==COMPAT_EWOULDBLOCK)) {
+        fd_set ready;FD_ZERO(&ready);FD_SET(fd,&ready);
+        struct timeval timeout={3,0};
+        ret=select(fd+1,NULL,&ready,NULL,&timeout);
+        if(ret>0) {
+            int error=0;
+            socklen_t size=sizeof(error);
+            ret=getsockopt(fd,SOL_SOCKET,SO_ERROR,(void*)&error,&size);
+            if(error)ret=-1;
+        } else ret=-1;
+    }
+    if(ret < 0) {
         compat_socket_close(fd);
         freeaddrinfo(result);
         return HTTPC_ERROR;
     }
+    if(bounded)compat_socket_blocking_mode(fd, 0);
 
     freeaddrinfo(result);
 
@@ -132,7 +146,7 @@ int sck_http_open(httpc_options_t *os, void **socket_out, void *opts, const char
         }
 
         // Perform TLS handshake
-        ret = tls_connect(tls);
+        ret = tls_connect(tls, bounded ? 3 : 30);
         if (ret != 0)
         {
             printf("http: TLS handshake failed: %d\n", ret);
@@ -141,6 +155,8 @@ int sck_http_open(httpc_options_t *os, void **socket_out, void *opts, const char
             return HTTPC_ERROR;
         }
     }
+
+    if(bounded)compat_socket_blocking_mode(fd, 0);
 
     // Allocate socket structure
     sock = libspectrum_malloc(sizeof(fuse_http_socket_t));
@@ -158,6 +174,11 @@ int sck_http_open(httpc_options_t *os, void **socket_out, void *opts, const char
 
     return HTTPC_OK;
 }
+
+int sck_http_open(httpc_options_t *os, void **out, void *opts, const char *domain, unsigned short port, int ssl)
+{ return sck_http_open_internal(os,out,opts,domain,port,ssl,0); }
+int sck_http_open_bounded(httpc_options_t *os, void **out, void *opts, const char *domain, unsigned short port, int ssl)
+{ return sck_http_open_internal(os,out,opts,domain,port,ssl,1); }
 
 int sck_http_close(httpc_options_t *os, void *socket)
 {

@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <time.h>
 
 #ifdef __APPLE__
 #include <stdlib.h> /* For arc4random_buf */
@@ -127,7 +128,8 @@ tls_socket_alloc( compat_socket_t fd, const char *hostname )
     return NULL;
   }
 
-  /* Disable certificate verification for now */
+  /* Certificate verification remains disabled until a system or Mozilla
+   * trust store is integrated. */
   mbedtls_ssl_conf_authmode( &tls->conf, MBEDTLS_SSL_VERIFY_NONE );
 
   /* Set RNG callback using platform RNG */
@@ -169,7 +171,7 @@ tls_socket_free( tls_socket_t *tls )
 }
 
 int
-tls_connect( tls_socket_t *tls )
+tls_connect( tls_socket_t *tls, unsigned timeout_seconds )
 {
   int ret;
   int blocking_result;
@@ -180,16 +182,17 @@ tls_connect( tls_socket_t *tls )
   if( tls->handshake_complete )
     return 0;
 
-  /* Make socket blocking for handshake */
-  /* Note: compat_socket_blocking_mode( fd, 1 ) makes it blocking */
+  /* Use non-blocking I/O so select can enforce the handshake deadline. */
   blocking_result = compat_socket_blocking_mode( tls->fd, 1 );
   if( blocking_result != 0 ) {
     ui_error( UI_ERROR_ERROR, "tls: failed to set socket blocking mode\n" );
     return -1;
   }
 
-  /* Perform blocking handshake - loop until complete or error */
+  time_t deadline = time(NULL) + timeout_seconds;
+  /* The caller supplies the handshake deadline independently of allocation. */
   do {
+    if( time(NULL) >= deadline ) { ret = -1; break; }
     ret = mbedtls_ssl_handshake( &tls->ssl );
     
     if( ret == 0 ) {
@@ -197,7 +200,6 @@ tls_connect( tls_socket_t *tls )
       break;
     }
     else if( ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE ) {
-      /* With blocking socket, this shouldn't happen, but handle it anyway */
       /* Wait for socket to become ready */
       fd_set readfds, writefds;
       struct timeval timeout;
@@ -211,7 +213,8 @@ tls_connect( tls_socket_t *tls )
       else
         FD_SET( tls->fd, &writefds );
       
-      timeout.tv_sec = 30; /* 30 second timeout */
+      timeout.tv_sec = deadline-time(NULL);
+      if(timeout.tv_sec < 0) timeout.tv_sec = 0;
       timeout.tv_usec = 0;
       
       select_ret = select( tls->fd + 1, &readfds, &writefds, NULL, &timeout );
@@ -231,7 +234,7 @@ tls_connect( tls_socket_t *tls )
     }
   } while( ret != 0 && ( ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE ) );
 
-  /* Restore socket to non-blocking mode */
+  /* Restore socket to blocking mode. */
   compat_socket_blocking_mode( tls->fd, 0 );
 
   if( ret == 0 ) {

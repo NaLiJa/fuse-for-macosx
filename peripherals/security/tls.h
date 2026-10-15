@@ -35,22 +35,50 @@ typedef struct tls_socket_t {
 } tls_socket_t;
 
 /* Allocate and initialize a TLS socket from a POSIX socket */
-/* hostname can be NULL, IP address string, or hostname for SNI */
+/**
+ * Allocate/configure mbedTLS around an already connected fd. hostname may be
+ * NULL or a borrowed NUL-terminated SNI name/address. Return a wrapper or NULL
+ * on failure; does not handshake. fd remains caller-owned even on success.
+ * Free the wrapper with tls_socket_free and close fd separately. Certificate
+ * verification is currently disabled pending system/Mozilla trust integration.
+ */
 tls_socket_t* tls_socket_alloc( compat_socket_t fd, const char *hostname );
 
-/* Free TLS socket and cleanup mbedTLS contexts */
+/**
+ * Free mbedTLS contexts and wrapper memory; NULL is allowed.
+ * Does not close the underlying fd or perform a TLS shutdown. Call tls_close
+ * first if a close-notify is wanted; never access the wrapper after this call.
+ */
 void tls_socket_free( tls_socket_t *tls );
 
-/* Perform blocking TLS handshake (called after connect) */
-int tls_connect( tls_socket_t *tls );
+/**
+ * Complete a handshake after TCP connect, waiting up to timeout_seconds for
+ * TLS progress (wall-clock seconds). Return 0 when complete/already complete,
+ * or a negative value (-1 or mbedTLS error) on failure. Restores blocking
+ * mode after the handshake attempt. The caller retains wrapper/fd ownership and must clean up on failure.
+ */
+int tls_connect( tls_socket_t *tls, unsigned timeout_seconds );
 
-/* Read from TLS socket, sets has_pending_data if more data available */
+/**
+ * Read at most len bytes into caller-owned buf after handshake completion.
+ * Return positive bytes read, 0 for would-block or TLS close-notify, or -1 on
+ * error/unready wrapper. Updates has_pending_data from buffered TLS plaintext.
+ * Socket blocking mode/timeouts determine whether this call waits.
+ */
 ssize_t tls_read( tls_socket_t *tls, void *buf, size_t len );
 
-/* Write to TLS socket */
+/**
+ * Write up to len bytes from caller-owned buf after a completed handshake.
+ * Return bytes written (possibly partial), 0 for would-block, or -1 on error.
+ * Caller must retry an unsent suffix; blocking behavior follows the fd settings.
+ */
 ssize_t tls_write( tls_socket_t *tls, const void *buf, size_t len );
 
-/* Close TLS connection gracefully */
+/**
+ * Send best-effort TLS close-notify if the handshake completed; NULL is allowed.
+ * Does not close fd or free the wrapper. Caller must subsequently free the
+ * wrapper and close its descriptor; socket settings determine blocking behavior.
+ */
 void tls_close( tls_socket_t *tls );
 
 #endif                          /* #ifndef FUSE_TLS_H */

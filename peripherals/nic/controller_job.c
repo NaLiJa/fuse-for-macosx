@@ -11,7 +11,7 @@ static struct controller_job {
     bool created, running, completed, stopping;
     void (*execute)(void *);
     void *request;
-} jobs[2];
+} jobs[CONTROLLER_JOB_COUNT];
 
 static void *worker(void *argument)
 {
@@ -33,7 +33,7 @@ static void *worker(void *argument)
 
 int controller_job_start(unsigned channel, void (*execute)(void *), void *request)
 {
-    if (channel >= 2) return -1;
+    if (channel >= CONTROLLER_JOB_COUNT) return -1;
     pthread_mutex_lock(&lock);
     struct controller_job *job = &jobs[channel];
     if (job->running || job->completed) {
@@ -72,10 +72,17 @@ bool controller_job_poll(unsigned channel)
     return completed;
 }
 
+static bool any_running(void)
+{
+    for (unsigned channel=0;channel<CONTROLLER_JOB_COUNT;channel++)
+        if (jobs[channel].running) return true;
+    return false;
+}
+
 void controller_job_cancel_and_wait(void)
 {
     pthread_mutex_lock(&lock);
-    while (jobs[0].running || jobs[1].running) {
+    while (any_running()) {
         pthread_mutex_unlock(&lock);
         http_downloader_cancel_all();
         pthread_mutex_lock(&lock);
@@ -83,7 +90,7 @@ void controller_job_cancel_and_wait(void)
         clock_gettime(CLOCK_REALTIME, &until);
         until.tv_nsec += 10000000;
         if (until.tv_nsec >= 1000000000) { until.tv_sec++; until.tv_nsec -= 1000000000; }
-        if (jobs[0].running || jobs[1].running)
+        if (any_running())
             pthread_cond_timedwait(&changed, &lock, &until);
     }
     pthread_mutex_unlock(&lock);
@@ -94,10 +101,10 @@ void controller_job_shutdown(void)
     unsigned channel;
     controller_job_cancel_and_wait();
     pthread_mutex_lock(&lock);
-    for (channel = 0; channel < 2; ++channel) jobs[channel].stopping = true;
+    for (channel = 0; channel < CONTROLLER_JOB_COUNT; ++channel) jobs[channel].stopping = true;
     pthread_cond_broadcast(&changed);
     pthread_mutex_unlock(&lock);
-    for (channel = 0; channel < 2; ++channel) {
+    for (channel = 0; channel < CONTROLLER_JOB_COUNT; ++channel) {
         if (jobs[channel].created) pthread_join(jobs[channel].thread, NULL);
         jobs[channel] = (struct controller_job){0};
     }

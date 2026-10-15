@@ -18,6 +18,7 @@
 
 #include "engines/engine.h"
 #include "controller_job.h"
+#include "match.h"
 
 #include "libspectrum.h"
 #include "memory_pages.h"
@@ -61,9 +62,16 @@ volatile struct spectranext_controller_t spectranext_controller = {
     .status = SPECTRANEXT_STATUS_SUCCESS,
 };
 
+static void complete_match(void *unused)
+{
+    (void)unused;
+    match_complete();
+}
+
 /* A completed response is immutable until the caller submits the next request. */
 static void update_controller_jobs(void)
 {
+    controller_job_poll(CONTROLLER_JOB_BACKGROUND);
     for (unsigned channel = 0; channel < 2; ++channel) {
         if (!controller_job_poll(channel)) continue;
         struct controller_request *request = &requests[channel];
@@ -72,6 +80,12 @@ static void update_controller_jobs(void)
         memcpy((void *)workspace, &request->workspace, sizeof(*workspace));
         if (channel) spectranext_controller.status1 = request->status;
         else spectranext_controller.status = request->status;
+        /* Publish first. Housekeeping cannot block the emulation thread or
+         * occupy either mailbox while the application resumes. */
+        if (request->command >= SPECTRANEXT_CMD_MATCHMAKING_MATCH &&
+            request->command <= SPECTRANEXT_CMD_MATCHMAKING_CODE &&
+            ((const match_snapshot *)request->workspace.page)->stage == MATCH_CONNECTED)
+            controller_job_start(CONTROLLER_JOB_BACKGROUND, complete_match, NULL);
     }
 }
 
@@ -313,13 +327,25 @@ static void execute_request(void *argument)
         case SPECTRANEXT_CMD_DNS_GETHOSTBYNAME:
         {
             char host[64];
-            memcpy(host, (const void *)request->workspace.dns.io.in.host, 63);
-            host[63] = '\0';
+            memcpy(host, (const void *)request->workspace.dns.io.in.host, sizeof(host));
+            if(!memchr(host,0,sizeof(host))) {
+                request->workspace.dns.io.out.ipv4=0;
+                spectranext_set_status(request,SPECTRANEXT_STATUS_ERROR);
+                break;
+            }
 
             if (host[0] == '\0')
             {
                 request->workspace.dns.io.out.ipv4 = 0;
                 spectranext_set_status(request, SPECTRANEXT_STATUS_ERROR);
+                break;
+            }
+
+            uint32_t match_ip;
+            int matched = match_resolve(host, &match_ip);
+            if (matched) {
+                request->workspace.dns.io.out.ipv4 = matched > 0 ? htonl(match_ip) : 0;
+                spectranext_set_status(request, matched > 0 ? SPECTRANEXT_STATUS_SUCCESS : SPECTRANEXT_STATUS_ERROR);
                 break;
             }
 
@@ -366,6 +392,19 @@ static void execute_request(void *argument)
             break;
         }
 
+        case SPECTRANEXT_CMD_MATCHMAKING_MATCH:
+        case SPECTRANEXT_CMD_MATCHMAKING_GET_PEER:
+        case SPECTRANEXT_CMD_MATCHMAKING_CONNECT:
+        case SPECTRANEXT_CMD_MATCHMAKING_SET_NAME:
+        case SPECTRANEXT_CMD_MATCHMAKING_CODE:
+        {
+            match_request in; match_snapshot out;
+            memcpy(&in, request->workspace.page, sizeof(in));
+            match_command(request->command, &in, &out);
+            memcpy(request->workspace.page, &out, sizeof(out));
+            spectranext_set_status(request, SPECTRANEXT_STATUS_SUCCESS);
+            break;
+        }
         case SPECTRANEXT_CMD_ENGINECALL:
         {
             request->workspace.enginecall.io.input_file[127] = '\0';
@@ -422,6 +461,8 @@ void spectranext_controller_init(void)
     controller_job_cancel_and_wait();
     controller_job_poll(0);
     controller_job_poll(1);
+    controller_job_poll(CONTROLLER_JOB_BACKGROUND);
+    match_reset();
     utils_file controller_binary = { 0 };
 
     memset((void *)&spectranext_controller, 0, sizeof(spectranext_controller));

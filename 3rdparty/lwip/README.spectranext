@@ -1,0 +1,6 @@
+Snapshot of the existing esp-idf/components/lwip/lwip core and headers in this
+repository, copied without changes for portable FuseX builds. The matchmaking
+NO_SYS build compiles only IPv4, raw/ICMP and TCP. Configuration and bridge code
+are project-owned in peripherals/nic/match_lwip and peripherals/nic/lwip.c.
+See COPYING and upstream file headers for licensing.
+Source commit: fd432e4ee2cfb7f7f1c7eb7227e0173412e7b84e

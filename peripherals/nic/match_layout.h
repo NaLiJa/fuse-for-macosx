@@ -44,6 +44,8 @@ typedef struct {
     match_peer peer;
 } match_snapshot;
 #pragma pack(pop)
+#ifndef __SPECTRUM__
 _Static_assert(sizeof(match_request) == 29, "Match request ABI");
 _Static_assert(sizeof(match_snapshot) == 220, "Match snapshot ABI");
+#endif
 #endif

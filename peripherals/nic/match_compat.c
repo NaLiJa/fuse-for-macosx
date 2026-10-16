@@ -417,6 +417,16 @@ int match_compat_start(const char *connection, const char *peer, uint32_t ip, ui
     }
     return gre_start(&gre, outer, &io_lock, ip, port, key, strcmp(match_compat_device(), peer) < 0);
 }
+int match_compat_connected(unsigned index, uint32_t gen, int udp) {
+    nic_w5100_t *nic = spectranet_match_nic();
+    if (!nic || index >= 4 || claimed != (int)index || !attached) return 0;
+    nic_w5100_socket_t *s = &nic->socket[index];
+    pthread_mutex_lock(&s->lock);
+    int connected = s->generation == gen && s->state ==
+        (udp ? W5100_SOCKET_STATE_UDP : W5100_SOCKET_STATE_ESTABLISHED);
+    pthread_mutex_unlock(&s->lock);
+    return connected;
+}
 const char *match_compat_error(void) {
     switch (atomic_load(&gre.failure)) {
     case MATCH_GRE_UDP_TIMEOUT: return "Peer UDP unreachable";
@@ -444,7 +454,8 @@ int match_compat_ready(void) {
     s->fd = gre.app;
     gre.app = compat_socket_invalid;
     s->state = W5100_SOCKET_STATE_ESTABLISHED;
-    s->ir |= 1;
+    /* CONNECT completion is consumed here, just like ordinary ROM CONNECT. */
+    s->ir &= ~1;
     s->socket_bound = 1;
     s->ok_for_io = 0;
     attached = 1;

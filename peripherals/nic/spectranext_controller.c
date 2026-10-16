@@ -392,6 +392,14 @@ static void execute_request(void *argument)
             break;
         }
 
+        case SPECTRANEXT_CMD_GET_STRING: {
+            uint8_t string_id = request->workspace.page[0], capacity = request->workspace.page[1];
+            char result[255] = {0};
+            int rc = match_get_string(string_id, result, capacity);
+            memcpy(request->workspace.page, result, rc ? 1 : strlen(result) + 1);
+            spectranext_set_status(request, rc ? SPECTRANEXT_STATUS_ERROR : SPECTRANEXT_STATUS_SUCCESS);
+            break;
+        }
         case SPECTRANEXT_CMD_MATCHMAKING_MATCH:
         case SPECTRANEXT_CMD_MATCHMAKING_GET_PEER:
         case SPECTRANEXT_CMD_MATCHMAKING_CONNECT:

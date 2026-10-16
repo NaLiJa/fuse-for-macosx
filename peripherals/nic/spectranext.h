@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "spectranext_strings.h"
+#include "match_layout.h"
 
 #define SPECTRANEXT_STATUS_IN_PROGRESS (0xFFu)
 #define SPECTRANEXT_STATUS_SUCCESS (0u)

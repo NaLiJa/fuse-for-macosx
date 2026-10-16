@@ -141,6 +141,7 @@ noinst_HEADERS += \
                   peripherals/nic/stun.h \
                   peripherals/nic/gre.h \
                   peripherals/nic/icmp.h \
+                  peripherals/nic/spectranext_strings.h \
                   peripherals/nic/match_lwip/lwipopts.h \
                   peripherals/nic/match_lwip/arch/cc.h \
                   peripherals/dck.h \

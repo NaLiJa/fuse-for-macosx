@@ -73,6 +73,10 @@ int match_compat_start(const char *connection, const char *peer_device, uint32_t
  * On readiness, adapts backend completion to the application socket state.
  */
 int match_compat_ready(void);
+/** Return nonzero only while index/generation still identifies an established
+ * match transport (UDP remains usable until closed). Does not start/poll setup
+ * or consume socket events. Caller holds the matchmaking lock. */
+int match_compat_connected(unsigned index, uint32_t generation, int udp);
 /**
  * Return a borrowed NUL-terminated platform diagnostic, possibly empty.
  * Copy it before another platform operation changes it; never free it.

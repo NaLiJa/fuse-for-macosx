@@ -8,6 +8,7 @@
 static struct match_context {
     char service[65], name[24], code[5], instance[33], connection[37], error[32];
     match_peer peers[MATCH_MAX_PEERS], selected;
+    char initiator[65];
     uint64_t due, advertised;
     uint32_t generation;
     unsigned socket, sequence;
@@ -194,6 +195,14 @@ static int post(const char *action, const char *target, const char *code) {
             json_value_free(v);
             return -1;
         }
+        const char *initiator = json_object_get_string(o, "initiator");
+        /* Older APIs omit this additive field; do not invent a pairing role. */
+        if (initiator && strcmp(initiator, id) && strcmp(initiator, match_compat_device())) {
+            copy(ctx.error, sizeof(ctx.error), "Invalid match initiator");
+            json_value_free(v);
+            return -1;
+        }
+        copy(ctx.initiator, sizeof(ctx.initiator), initiator);
         copy(ctx.connection, sizeof(ctx.connection), connection);
         copy(ctx.selected.device, sizeof(ctx.selected.device), id);
         copy(ctx.selected.name, sizeof(ctx.selected.name), json_object_get_string(peer, "name"));
@@ -269,6 +278,8 @@ static void release(void) {
     match_compat_release();
     ctx.active = ctx.pending = ctx.completion_pending = 0;
     ctx.stage = MATCH_CANCELLED;
+    ctx.initiator[0] = 0;
+    memset(&ctx.selected, 0, sizeof(ctx.selected));
 }
 void match_reset(void) {
     match_compat_lock();
@@ -314,6 +325,8 @@ void match_command(unsigned command, const match_request *r, match_snapshot *s) 
         ctx.sequence = 0;
         ctx.connection[0] = ctx.code[0] = ctx.error[0] = 0;
         ctx.count = 0;
+        ctx.initiator[0] = 0;
+        memset(&ctx.selected, 0, sizeof(ctx.selected));
         memset(ctx.peers, 0, sizeof(ctx.peers));
         ctx.revision++;
         match_compat_load_name(ctx.name);
@@ -431,4 +444,35 @@ void match_complete(void) {
             post("connected", NULL, NULL);
     }
     match_compat_unlock();
+}
+
+int match_get_string(uint8_t string_id, char *out, uint8_t capacity) {
+    if (!capacity) return -1;
+    out[0] = 0;
+    match_compat_lock();
+    const char *value = NULL;
+    char name[24];
+    if (string_id == SPECTRANEXT_STRING_SERIAL)
+        value = match_compat_device();
+    else if (string_id == SPECTRANEXT_STRING_MATCH_NAME) {
+        match_compat_load_name(name);
+        name[23] = 0;
+        trim_name(name);
+        value = name[0] ? name : match_compat_device();
+    } else if (context && ctx.active && ctx.stage == MATCH_CONNECTED &&
+               match_compat_connected(ctx.socket, ctx.generation, ctx.udp)) {
+        switch (string_id) {
+        case SPECTRANEXT_STRING_MATCH_PEER_SERIAL: value = ctx.selected.device; break;
+        case SPECTRANEXT_STRING_MATCH_PEER_NAME:
+            value = ctx.selected.name[0] ? ctx.selected.name : ctx.selected.device; break;
+        case SPECTRANEXT_STRING_MATCH_INITIATOR_SERIAL: value = ctx.initiator; break;
+        }
+    }
+    int result = -1;
+    if (value && value[0] && strlen(value) < capacity) {
+        memcpy(out, value, strlen(value) + 1);
+        result = 0;
+    }
+    match_compat_unlock();
+    return result;
 }

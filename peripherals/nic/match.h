@@ -1,6 +1,7 @@
 #ifndef SPX_MATCH_H
 #define SPX_MATCH_H
 #include "match_layout.h"
+#include "spectranext_strings.h"
 /**
  * Recognize a NUL-terminated service@match.spx hostname and remember its service.
  * Return 1 and write the numeric SPX_MATCH_IP marker to ip on success, 0 for a
@@ -25,6 +26,13 @@ void match_command(unsigned command, const match_request *request, match_snapsho
  * established peer transport. Serializes internally; no-op without pending work.
  */
 void match_complete(void);
+/** Copy a selected local/match string into out[capacity], including its NUL.
+ * Return 0 on success, -1 on unavailable/unknown/insufficient capacity; never
+ * truncate. If capacity is nonzero, failure empties out. Takes the match lock;
+ * out must be non-NULL when capacity is nonzero. VERSION is served by Z80 ROM.
+ * Peer values are exposed only while the claimed transport remains connected.
+ */
+int match_get_string(uint8_t string_id, char *out, uint8_t capacity);
 /**
  * Close/release the claimed transport and clear pending service and menu state.
  * Takes the matchmaking lock internally and may wait for platform cleanup.

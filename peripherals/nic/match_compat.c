@@ -1,30 +1,34 @@
+#include "config.h"
+#ifdef WIN32
+#define _CRT_RAND_S
+#endif
 #include "match_compat.h"
 #include "stun.h"
 #include "match.h"
 #include "../http/http_sck.h"
-#include "config.h"
 #include "gre.h"
 #include "w5100.h"
 #include "w5100_internals.h"
-#include <arpa/inet.h>
 #include <ctype.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifndef WIN32
+#include <arpa/inet.h>
+#include <netdb.h>
 #include <unistd.h>
-#ifdef __APPLE__
-#else
+#ifndef __APPLE__
 #include <sys/random.h>
+#endif
 #endif
 extern nic_w5100_t *spectranet_match_nic(void);
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER, io_lock = PTHREAD_MUTEX_INITIALIZER;
-static int outer = -1, claimed = -1, attached;
+static compat_socket_t outer = (compat_socket_t)-1;
+static int claimed = -1, attached;
 static uint32_t generation;
-static gre_context gre = {.app = -1, .bridge = -1};
+static gre_context gre = {.app = (compat_socket_t)-1, .bridge = (compat_socket_t)-1};
 static char device[17];
 /* Deployment defaults; local test services are selected through the launch
  * environment, never through a shared Xcode scheme. */
@@ -40,7 +44,18 @@ uint64_t match_compat_time(void) {
     return (uint64_t)t.tv_sec * 1000 + t.tv_nsec / 1000000;
 }
 void match_compat_random(void *data, size_t n) {
-#ifdef __APPLE__
+#ifdef WIN32
+    unsigned char *bytes = data;
+    while (n) {
+        unsigned value;
+        if (rand_s(&value))
+            abort();
+        size_t count = n < sizeof(value) ? n : sizeof(value);
+        memcpy(bytes, &value, count);
+        bytes += count;
+        n -= count;
+    }
+#elif defined(__APPLE__)
     arc4random_buf(data, n);
 #else
     size_t done = 0;
@@ -71,6 +86,10 @@ const char *match_compat_device(void) {
 }
 static void name_path(char *path, size_t n) {
     const char *home = getenv("HOME");
+#ifdef WIN32
+    if (!home || !home[0])
+        home = getenv("USERPROFILE");
+#endif
     const char *fixed = getenv("SPX_MATCH_DEVICE");
     if (fixed && strlen(fixed) == 16 && strspn(fixed, "0123456789abcdefABCDEF") == 16)
         snprintf(path, n, "%s/.fusex-match-name-%s", home ? home : ".", match_compat_device());
@@ -112,24 +131,29 @@ int match_compat_claim(unsigned index, uint32_t *gen, int *udp) {
         return -1;
     }
     outer = socket(AF_INET, SOCK_DGRAM, 0);
-    if (outer < 0) {
+    if (outer == compat_socket_invalid) {
         pthread_mutex_unlock(&s->lock);
         return -1;
     }
     struct sockaddr_in bindaddr = {.sin_family = AF_INET, .sin_addr.s_addr = INADDR_ANY};
     if (bind(outer, (struct sockaddr *)&bindaddr, sizeof(bindaddr))) {
-        close(outer);
-        outer = -1;
+        compat_socket_close(outer);
+        outer = compat_socket_invalid;
         pthread_mutex_unlock(&s->lock);
         return -1;
     }
     socklen_t local_length = sizeof(bindaddr);
     if (!getsockname(outer, (struct sockaddr *)&bindaddr, &local_length))
         memcpy(s->port, &bindaddr.sin_port, 2);
-    fcntl(outer, F_SETFL, O_NONBLOCK);
+    if (compat_socket_blocking_mode(outer, 1)) {
+        compat_socket_close(outer);
+        outer = compat_socket_invalid;
+        pthread_mutex_unlock(&s->lock);
+        return -1;
+    }
     *udp = s->mode == W5100_SOCKET_MODE_UDP;
     *gen = generation = s->generation;
-    close(s->fd);
+    compat_socket_close(s->fd);
     s->fd = compat_socket_invalid;
     s->ok_for_io = 0;
     s->protocol = s->backend_protocol = *udp ? 0 : 0xf2;
@@ -173,7 +197,7 @@ static void queue_udp(const void *packet, unsigned length, const struct sockaddr
     pthread_mutex_lock(&s->lock);
     if (s->generation == generation && s->match_udp &&
         !memcmp(&from->sin_addr.s_addr, s->match_ip, 4) &&
-        !memcmp(&from->sin_port, s->match_port, 2) && length + 8 <= 0x800 - s->rx_rsr) {
+        !memcmp(&from->sin_port, s->match_port, 2) && length + 8 <= 0x800u - s->rx_rsr) {
         unsigned char bytes[1208];
         memcpy(bytes, &from->sin_addr.s_addr, 4);
         memcpy(bytes + 4, &from->sin_port, 2);
@@ -193,7 +217,8 @@ struct stun_socket {
 };
 static int stun_send(void *argument, const uint8_t *packet, size_t n) {
     struct stun_socket *s = argument;
-    return sendto(outer, packet, n, 0, (struct sockaddr *)&s->server, sizeof(s->server)) == (int)n
+    return sendto(outer, (const char *)packet, n, 0,
+                  (struct sockaddr *)&s->server, sizeof(s->server)) == (int)n
                ? 0
                : -1;
 }
@@ -203,11 +228,11 @@ static int stun_receive(void *argument, uint8_t *packet, size_t capacity, unsign
     FD_ZERO(&set);
     FD_SET(outer, &set);
     struct timeval wait = {0, (int)timeout * 1000};
-    if (select(outer + 1, &set, NULL, NULL, &wait) <= 0)
+    if (select((int)(outer + 1), &set, NULL, NULL, &wait) <= 0)
         return -1;
     struct sockaddr_in from;
     socklen_t length = sizeof(from);
-    int n = recvfrom(outer, packet, capacity, 0, (struct sockaddr *)&from, &length);
+    int n = recvfrom(outer, (char *)packet, capacity, 0, (struct sockaddr *)&from, &length);
     if (n >= 0 && from.sin_addr.s_addr == s->server.sin_addr.s_addr &&
         from.sin_port == s->server.sin_port)
         return n;
@@ -229,7 +254,7 @@ int match_compat_stun(uint32_t *ip, uint16_t *port) {
     const char *host = endpoint("SPX_MATCH_STUN_HOST", "stun.l.google.com");
     const char *service = endpoint("SPX_MATCH_STUN_PORT", "19302");
     struct addrinfo hints = {.ai_family = AF_INET, .ai_socktype = SOCK_DGRAM}, *addresses = NULL;
-    if (outer < 0 || getaddrinfo(host, service, &hints, &addresses))
+    if (outer == compat_socket_invalid || getaddrinfo(host, service, &hints, &addresses))
         return -1;
     struct stun_socket socket = {.server = *(struct sockaddr_in *)addresses->ai_addr};
     stun_io io = {.context = &socket,
@@ -363,8 +388,16 @@ int match_compat_start(const char *connection, const char *peer, uint32_t ip, ui
             pthread_mutex_unlock(&s->lock);
             return -1;
         }
+#ifdef WIN32
+        WSAPROTOCOL_INFO info;
+        s->fd = compat_socket_invalid;
+        if (!WSADuplicateSocket(outer, GetCurrentProcessId(), &info))
+            s->fd = WSASocket(FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO,
+                              FROM_PROTOCOL_INFO, &info, 0, WSA_FLAG_OVERLAPPED);
+#else
         s->fd = dup(outer);
-        if (s->fd < 0) {
+#endif
+        if (s->fd == compat_socket_invalid) {
             pthread_mutex_unlock(&s->lock);
             return -1;
         }
@@ -409,7 +442,7 @@ int match_compat_ready(void) {
         return -1;
     }
     s->fd = gre.app;
-    gre.app = -1;
+    gre.app = compat_socket_invalid;
     s->state = W5100_SOCKET_STATE_ESTABLISHED;
     s->ir |= 1;
     s->socket_bound = 1;
@@ -421,16 +454,16 @@ int match_compat_ready(void) {
 }
 void match_compat_release(void) {
     gre_stop(&gre);
-    if (outer >= 0)
-        close(outer);
-    outer = -1;
+    if (outer != compat_socket_invalid)
+        compat_socket_close(outer);
+    outer = compat_socket_invalid;
     nic_w5100_t *nic = spectranet_match_nic();
     if (nic && claimed >= 0) {
         nic_w5100_socket_t *s = &nic->socket[claimed];
         pthread_mutex_lock(&s->lock);
         if (s->generation == generation) {
             if (s->fd != compat_socket_invalid)
-                close(s->fd);
+                compat_socket_close(s->fd);
             s->fd = compat_socket_invalid;
             s->ok_for_io = 0;
             s->socket_bound = 0;

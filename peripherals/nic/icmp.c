@@ -1,6 +1,7 @@
+#include "config.h"
 /* Setup-only echo helper; lwIP's ICMP implementation replies to peer requests. */
-#include "icmp.h"
 #include "gre.h"
+#include "icmp.h"
 #include "lwip/inet_chksum.h"
 #include "lwip/raw.h"
 #include <string.h>

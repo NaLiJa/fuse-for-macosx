@@ -1,12 +1,16 @@
 #ifndef MATCH_GRE_H
 #define MATCH_GRE_H
+#include "compat.h"
+#ifdef WIN32
+#include <ws2tcpip.h>
+#else
 #include <netinet/in.h>
+#endif
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdint.h>
-#include <sys/socket.h>
 typedef struct gre_context {
-    int udp, bridge, app;
+    compat_socket_t udp, bridge, app;
     uint32_t key;
     struct sockaddr_in peer;
     pthread_t thread;
@@ -27,13 +31,14 @@ extern unsigned long match_gre_tx_packets, match_gre_rx_packets, match_gre_tcp_b
     match_gre_icmp_replies;
 /**
  * Initialize a fresh caller-owned context and start its lwIP bridge thread.
- * udp and lock are borrowed and must outlive the worker. ip/port are the outer
+ * udp must be nonblocking. udp and lock are borrowed and must outlive the
+ * worker. ip/port are the outer
  * peer endpoint in host order; key identifies the tunnel; initiator selects the
  * inner TCP role. Return 0 when started or -1 on local setup failure.
  * Observe atomic ready (0 pending, 1 usable, -1 failed) before using g->app.
  * Stop any previous context before reusing it; only one lwIP tunnel is supported.
  */
-int gre_start(gre_context *g, int udp, pthread_mutex_t *lock, uint32_t ip, uint16_t port,
+int gre_start(gre_context *g, compat_socket_t udp, pthread_mutex_t *lock, uint32_t ip, uint16_t port,
               uint32_t key, int initiator);
 /**
  * Signal and join g's worker, then close its app/bridge descriptors.
@@ -50,7 +55,7 @@ void gre_queue(gre_context *g, const void *packet, unsigned length, const struct
 /**
  * Read one queued or nonblocking outer datagram into packet[capacity] and from.
  * Caller holds g->io_lock. Return bytes copied (a queued packet may be truncated),
- * or recvfrom's negative result/errno when no packet is available or on error.
+ * or recvfrom's negative result/platform socket error when no packet is available or on error.
  * Buffers are caller-owned; this function does not validate GRE contents.
  */
 int gre_read(gre_context *g, void *packet, unsigned capacity, struct sockaddr_in *from);

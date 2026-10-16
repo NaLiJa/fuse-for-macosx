@@ -1,3 +1,4 @@
+#include "config.h"
 /* One worker owns the NO_SYS lwIP stack for the device's single active match. */
 #include "gre.h"
 #include "icmp.h"
@@ -9,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
 static struct netif tunnel;
 static struct tcp_pcb *stream, *listener;
 static int stream_connected;
@@ -52,7 +52,11 @@ static err_t receive(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err) 
     (void)pcb;
     (void)err;
     if (!p) {
+#ifdef WIN32
+        shutdown(current->bridge, SD_SEND);
+#else
         shutdown(current->bridge, SHUT_WR);
+#endif
         return ERR_OK;
     }
     if (p->tot_len > sizeof(incoming) - incoming_n)
@@ -165,7 +169,7 @@ void *match_lwip_worker(void *argument) {
         FD_ZERO(&readset);
         FD_SET(g->udp, &readset);
         struct timeval wait = {0, 10000};
-        select(g->udp + 1, &readset, NULL, NULL, &wait);
+        select((int)(g->udp + 1), &readset, NULL, NULL, &wait);
         {
             pthread_mutex_lock(g->io_lock);
             unsigned char frame[1280];
@@ -190,8 +194,9 @@ void *match_lwip_worker(void *argument) {
             break;
         if (atomic_load(&g->ready) > 0 && stream) {
             if (incoming_n > incoming_offset) {
-                int n = send(g->bridge, incoming + incoming_offset, incoming_n - incoming_offset,
-                             MSG_DONTWAIT
+                int n = send(g->bridge, (const char *)incoming + incoming_offset,
+                             incoming_n - incoming_offset,
+                             0
 #ifdef MSG_NOSIGNAL
                                  | MSG_NOSIGNAL
 #endif
@@ -204,7 +209,7 @@ void *match_lwip_worker(void *argument) {
                 }
             }
             if (!outgoing_n) {
-                int n = recv(g->bridge, outgoing, sizeof(outgoing), MSG_DONTWAIT);
+                int n = recv(g->bridge, (char *)outgoing, sizeof(outgoing), 0);
                 if (n > 0)
                     outgoing_n = n;
                 else if (!n)
@@ -234,6 +239,10 @@ void *match_lwip_worker(void *argument) {
         listener = NULL;
     }
     netif_remove(&tunnel);
+#ifdef WIN32
+    shutdown(g->bridge, SD_BOTH);
+#else
     shutdown(g->bridge, SHUT_RDWR);
+#endif
     return NULL;
 }

@@ -78,6 +78,7 @@ static const int SPECTRANET_CPLD_VERSION = 0x03;
 static memory_page spectranet_full_map[SPECTRANET_PAGES * MEMORY_PAGES_IN_4K];
 static memory_page spectranet_current_map[MEMORY_PAGES_IN_16K];
 static int spectranet_memory_allocated = 0;
+static int spectranet_rom_loaded = 0;
 
 static nic_w5100_t *w5100;
 nic_w5100_t *spectranet_match_nic(void) { return w5100; }
@@ -229,7 +230,8 @@ spectranet_save_flash_rom( void )
     flash_am29f010_set_modified( flash_rom, 0 );
 }
 
-static void
+/* Returns 1 if a valid spectranet.rom was loaded, 0 otherwise */
+static int
 spectranet_load_flash_rom( libspectrum_byte *rom )
 {
   const char *config_path = compat_get_config_path();
@@ -246,7 +248,20 @@ spectranet_load_flash_rom( libspectrum_byte *rom )
 
   source_rom_loaded =
     utils_read_auxiliary_file( "spectranet.rom", &spectranet_rom,
-                               UTILS_AUXILIARY_ROM ) != -1;
+                               UTILS_AUXILIARY_ROM ) == 0;
+
+  if( !source_rom_loaded ) {
+    ui_error( UI_ERROR_ERROR,
+              "couldn't find ROM 'spectranet.rom'; Spectranet disabled" );
+  } else if( spectranet_rom.length != SPECTRANET_ROM_LENGTH ) {
+    ui_error( UI_ERROR_ERROR,
+              "ROM 'spectranet.rom' is %lu bytes long; expected %lu bytes; "
+              "Spectranet disabled",
+              (unsigned long)spectranet_rom.length,
+              (unsigned long)SPECTRANET_ROM_LENGTH );
+    utils_close_file( &spectranet_rom );
+    source_rom_loaded = 0;
+  }
 
   if( source_rom_loaded )
     spectranet_source_rom_hash = spectranet_hash_rom( spectranet_rom.buffer );
@@ -259,7 +274,7 @@ spectranet_load_flash_rom( libspectrum_byte *rom )
               SPECTRANET_ROM_LENGTH );
       utils_close_file( &local_rom );
       utils_close_file( &spectranet_rom );
-      return;
+      return 1;
     }
     utils_close_file( &local_rom );
   }
@@ -273,6 +288,8 @@ spectranet_load_flash_rom( libspectrum_byte *rom )
   } else {
     spectranet_rom_path[0] = '\0';
   }
+
+  return source_rom_loaded;
 }
 
 void
@@ -491,6 +508,14 @@ spectranet_reset( int hard_reset )
     return;
   }
 
+  if( !spectranet_rom_loaded ) {
+    settings_current.spectranet = 0;
+    spectranet_available = 0;
+    spectranet_paged = 0;
+    periph_activate_type( PERIPH_TYPE_SPECTRANET, 0 );
+    return;
+  }
+
   if( nic_w5100_enable( w5100 ) ) {
     ui_error( UI_ERROR_WARNING,
               "Networking blocked (loopback/firewall?); Spectranet disabled" );
@@ -598,7 +623,7 @@ spectranet_activate( void )
     /* Pages 0xc0 to 0xff are the RAM */
     ram = memory_pool_allocate_persistent( SPECTRANET_RAM_LENGTH, 1 );
 
-    spectranet_load_flash_rom( rom );
+    spectranet_rom_loaded = spectranet_load_flash_rom( rom );
 
     for( i = 0; i < SPECTRANET_RAM_LENGTH / SPECTRANET_PAGE_LENGTH; i++ ) {
       int base = (SPECTRANET_RAM_BASE + i) * MEMORY_PAGES_IN_4K;
@@ -615,6 +640,9 @@ spectranet_activate( void )
     spectranet_map_page( 3, 0xc0 );
 
     spectranet_hard_reset();
+  } else if( !spectranet_rom_loaded ) {
+    spectranet_rom_loaded = spectranet_load_flash_rom(
+      spectranet_full_map[SPECTRANET_ROM_BASE * MEMORY_PAGES_IN_4K].page );
   }
   
   xfs_init();

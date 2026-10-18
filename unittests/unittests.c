@@ -1269,6 +1269,19 @@ keyboard_synthetic_test( void )
   keyboard_release( KEYBOARD_a );
   TEST_ASSERT( keyboard_read( 0xfd ) == 0xff );
 
+  keyboard_synthetic_press( KEYBOARD_SYNTHETIC_JOYSTICK_FIRE, KEYBOARD_7 );
+  keyboard_release( KEYBOARD_7 );
+  TEST_ASSERT( keyboard_read( 0xef ) == 0xf7 );
+  keyboard_synthetic_release( KEYBOARD_SYNTHETIC_JOYSTICK_FIRE, KEYBOARD_7 );
+  TEST_ASSERT( keyboard_read( 0xef ) == 0xff );
+
+  keyboard_synthetic_press( KEYBOARD_SYNTHETIC_JOYSTICK_FIRE, KEYBOARD_7 );
+  keyboard_synthetic_press( KEYBOARD_SYNTHETIC_DISCIPLE, KEYBOARD_a );
+  keyboard_release_all();
+  TEST_ASSERT( keyboard_read( 0xef ) == 0xff );
+  TEST_ASSERT( keyboard_read( 0xfd ) == 0xfe );
+  keyboard_synthetic_release_all( KEYBOARD_SYNTHETIC_DISCIPLE );
+
   return 0;
 }
 

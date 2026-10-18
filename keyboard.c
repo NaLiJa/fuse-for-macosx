@@ -398,6 +398,7 @@ int keyboard_release_all( void )
   int i;
 
   for( i=0; i<KEYBOARD_HALFROWS; i++ ) keyboard_return_values[i] = 0xff;
+  keyboard_synthetic_release_all( KEYBOARD_SYNTHETIC_JOYSTICK_FIRE );
 
   /* The physical keys (including any held cursor keys) are all released,
      so the shifted-arrow tracking state must be reset too.  Otherwise the
@@ -417,6 +418,18 @@ keyboard_synthetic_press( keyboard_synthetic_source source,
 
   ptr = g_hash_table_lookup( keyboard_data, &key );
   if( ptr ) keyboard_synthetic_values[source][ptr->port] &= ~ptr->bit;
+}
+
+void
+keyboard_synthetic_release( keyboard_synthetic_source source,
+                            keyboard_key_name key )
+{
+  struct key_bit *ptr;
+
+  if( source < 0 || source >= KEYBOARD_SYNTHETIC_SOURCE_COUNT ) return;
+
+  ptr = g_hash_table_lookup( keyboard_data, &key );
+  if( ptr ) keyboard_synthetic_values[source][ptr->port] |= ptr->bit;
 }
 
 void

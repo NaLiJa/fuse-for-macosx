@@ -446,9 +446,9 @@ do_joystick( const input_event_joystick_t *joystick_event, int press )
       joystick_press( which, JOYSTICK_BUTTON_FIRE, press );
     } else {
       if( press ) {
-	keyboard_press( key );
+	keyboard_synthetic_press( KEYBOARD_SYNTHETIC_JOYSTICK_FIRE, key );
       } else {
-	keyboard_release( key );
+	keyboard_synthetic_release( KEYBOARD_SYNTHETIC_JOYSTICK_FIRE, key );
       }
     }
 

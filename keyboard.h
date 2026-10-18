@@ -40,6 +40,7 @@ typedef enum keyboard_synthetic_source {
 
   KEYBOARD_SYNTHETIC_PHANTOM_TYPIST = 0,
   KEYBOARD_SYNTHETIC_DISCIPLE,
+  KEYBOARD_SYNTHETIC_JOYSTICK_FIRE,
   KEYBOARD_SYNTHETIC_SOURCE_COUNT
 
 } keyboard_synthetic_source;
@@ -109,6 +110,8 @@ void keyboard_release(keyboard_key_name key);
 int keyboard_release_all( void );
 void keyboard_synthetic_press( keyboard_synthetic_source source,
                                keyboard_key_name key );
+void keyboard_synthetic_release( keyboard_synthetic_source source,
+                                 keyboard_key_name key );
 void keyboard_synthetic_release_all( keyboard_synthetic_source source );
 
 /* Which Spectrum keys should be emulated as pressed when each input

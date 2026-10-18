@@ -125,9 +125,10 @@ static int post(const char *action, const char *target, const char *code) {
     if (!body) { free(response); json_value_free(v); return -1; }
     unsigned sequence = ++ctx.sequence;
     int status = match_compat_post(body, ctx.instance, sequence, response, response_capacity);
-    /* Retry a lost response with the same body, request number and discovered address. */
-    /* Completion is best effort: a usable tunnel must not wait for a retry. */
-    if (status < 0 && (!action || strcmp(action, "connected")))
+    /* Lobby failures belong to the caller; do not retry registration/refresh.
+     * Other control requests retain their lost-response retry. Completion is
+     * best effort: a usable tunnel must not wait for a retry. */
+    if (status < 0 && action && strcmp(action, "connected"))
         status = match_compat_post(body, ctx.instance, sequence, response, response_capacity);
     json_free_serialized_string(body);
     json_value_free(v);
@@ -405,7 +406,7 @@ void match_command(unsigned command, const match_request *r, match_snapshot *s) 
     if (command != SPECTRANEXT_CMD_MATCHMAKING_GET_PEER && ctx.active &&
         ctx.stage != MATCH_CONNECTED && ctx.stage != MATCH_CONNECTING &&
         match_compat_time() >= ctx.due) {
-        if (post(ctx.connection[0] ? "poll" : NULL, NULL, NULL) && ctx.connection[0]) {
+        if (post(ctx.connection[0] ? "poll" : NULL, NULL, NULL)) {
             release();
             ctx.stage = MATCH_ERROR;
         }

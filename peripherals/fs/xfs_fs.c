@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <errno.h>
 #ifdef WIN32
+#include <windows.h>
 #include <io.h>
 #include <fcntl.h>  /* For O_* constants */
 #include <direct.h>
@@ -32,6 +33,37 @@ static int16_t xfs_error_from_errno(int err)
 {
     return (err != 0) ? -err : 0;
 }
+
+#ifdef WIN32
+static int16_t xfs_error_from_win32(DWORD error)
+{
+    switch (error) {
+    case ERROR_FILE_NOT_FOUND:
+    case ERROR_PATH_NOT_FOUND:
+        return XFS_ERR_NOENT;
+    case ERROR_ACCESS_DENIED:
+    case ERROR_SHARING_VIOLATION:
+    case ERROR_LOCK_VIOLATION:
+    case ERROR_WRITE_PROTECT:
+        return -EACCES;
+    case ERROR_ALREADY_EXISTS:
+    case ERROR_FILE_EXISTS:
+        return XFS_ERR_EXIST;
+    case ERROR_DISK_FULL:
+    case ERROR_HANDLE_DISK_FULL:
+        return XFS_ERR_NOSPC;
+    case ERROR_DIR_NOT_EMPTY:
+        return XFS_ERR_NOTEMPTY;
+    case ERROR_FILENAME_EXCED_RANGE:
+        return XFS_ERR_NAMETOOLONG;
+    case ERROR_NOT_ENOUGH_MEMORY:
+    case ERROR_OUTOFMEMORY:
+        return XFS_ERR_NOMEM;
+    default:
+        return XFS_ERR_IO;
+    }
+}
+#endif
 
 // Helper function to build a full path
 // Caller-owned storage permits background copies alongside Z80 file reads.
@@ -684,13 +716,19 @@ static int16_t fs_rename(const struct xfs_engine_mount_t* engine, const char* ol
     char full_new_path[PATH_MAX];
     build_path(old_path, full_old_path);
     build_path(new_path, full_new_path);
-    int ret = rename(full_old_path, full_new_path);
-    
-    if (ret != 0) {
+#ifdef WIN32
+    if (!MoveFileExA(full_old_path, full_new_path, MOVEFILE_REPLACE_EXISTING)) {
+        DWORD error = GetLastError();
+        XFS_DEBUG("fs: rename failed: Windows error %lu\n", (unsigned long)error);
+        return xfs_error_from_win32(error);
+    }
+#else
+    if (rename(full_old_path, full_new_path) != 0) {
         XFS_DEBUG("fs: rename failed: %s\n", strerror(errno));
         return xfs_error_from_errno(errno);
     }
-    
+#endif
+
     XFS_DEBUG("fs: rename success\n");
     return XFS_ERR_OK;
 }

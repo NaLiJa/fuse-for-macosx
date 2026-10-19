@@ -2175,6 +2175,7 @@
 			buildConfigurationList = B61F46A509121DF100C8096C /* Build configuration list for PBXNativeTarget "FuseX" */;
 			buildPhases = (
 				D1A55E0129C0F1A000185E4D /* Generate libspectrum.h */,
+				FE1B00130001000000000004 /* Generate git_commit.h */,
 				B61F459109121DF100C8096C /* ShellScript */,
 				FE1B00130001000000000003 /* Build libfusex */,
 				B61F459209121DF100C8096C /* Copy Files */,
@@ -2435,6 +2436,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "PATH=\"/opt/homebrew/bin:/usr/local/bin:${PATH}\" make -C \"${SRCROOT}/..\" -f Makefile.darwin libfusex-xcode\n";
+		};
+		FE1B00130001000000000004 /* Generate git_commit.h */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate git_commit.h";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/git_commit.h",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "printf '#define FUSEX_GIT_COMMIT \"%s\"\\n' \"$(git -C \"${SRCROOT}\" rev-parse --short HEAD || echo unknown)\" > \"${DERIVED_FILE_DIR}/git_commit.h\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

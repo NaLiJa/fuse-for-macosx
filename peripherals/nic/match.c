@@ -298,6 +298,28 @@ void match_command(unsigned command, const match_request *r, match_snapshot *s) 
         copy(s->error, sizeof(s->error), "Out of memory");
         match_compat_unlock(); return;
     }
+    /* A saved name is device-local, even after cancellation or failure.
+     * Do not claim/check a socket or perform a network request for this command. */
+    if (command == SPECTRANEXT_CMD_MATCHMAKING_SET_NAME) {
+        char name[24], saved[24];
+        memcpy(name, r->text, sizeof(name));
+        name[23] = 0;
+        trim_name(name);
+        match_compat_load_name(saved);
+        saved[23] = 0;
+        int valid = 1;
+        for (size_t i = 0; name[i]; i++)
+            if ((unsigned char)name[i] < 32 || (unsigned char)name[i] > 126)
+                valid = 0;
+        if (!valid || (strcmp(name, saved) && match_compat_save_name(name))) {
+            copy(ctx.error, sizeof(ctx.error), "Name save failed");
+        } else {
+            copy(ctx.name, sizeof(ctx.name), name);
+            ctx.error[0] = 0;
+            ctx.due = 0;
+        }
+        goto snapshot;
+    }
     if (ctx.active && r->socket != ctx.socket) {
         memset(s, 0, sizeof(*s));
         s->stage = MATCH_ERROR;
@@ -345,24 +367,6 @@ void match_command(unsigned command, const match_request *r, match_snapshot *s) 
     if (command == SPECTRANEXT_CMD_MATCHMAKING_MATCH && r->socket != ctx.socket) {
         copy(ctx.error, 32, "Match already active");
         goto snapshot;
-    }
-    if (command == SPECTRANEXT_CMD_MATCHMAKING_SET_NAME &&
-        (ctx.stage == MATCH_WAITING || ctx.stage == MATCH_PREPARING)) {
-        char name[24];
-        memcpy(name, r->text, 24);
-        name[23] = 0;
-        trim_name(name);
-        int valid = 1;
-        for (size_t i = 0; name[i]; i++)
-            if ((unsigned char)name[i] < 32 || (unsigned char)name[i] > 126)
-                valid = 0;
-        if (!valid || (strcmp(name, ctx.name) && match_compat_save_name(name))) {
-            copy(ctx.error, 32, "Name save failed");
-            goto snapshot;
-        } else {
-            copy(ctx.name, 24, name);
-            ctx.due = 0;
-        }
     }
     if (command == SPECTRANEXT_CMD_MATCHMAKING_CODE &&
         (ctx.stage == MATCH_WAITING || ctx.stage == MATCH_PREPARING)) {

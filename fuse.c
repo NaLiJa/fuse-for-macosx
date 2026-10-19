@@ -160,6 +160,7 @@ static void fuse_show_version( void );
 static void fuse_show_test_build_info( void );
 static void fuse_show_help( void );
 
+static void start_files_access( int argc, char **argv, int first_arg );
 static int setup_start_files( start_files_t *start_files );
 static int parse_nonoption_args( int argc, char **argv, int first_arg,
 				 start_files_t *start_files );
@@ -357,6 +358,9 @@ int fuse_init(int argc, char **argv)
   start_scaler = utils_safe_strdup( settings_current.start_scaler_mode );
 
   if( !settings_current.no_banner ) fuse_show_copyright();
+
+  /* Peripheral initialisation inserts the hard disk and memory card images */
+  start_files_access( argc, argv, first_arg );
 
   if( run_startup_manager( &argc, &argv ) ) return 1;
 
@@ -598,6 +602,63 @@ int fuse_emulation_unpause(void)
 
   return 0;
 }
+
+/* Ask the UI for access to every file that startup reads or writes: the
+   file-valued settings and the positional arguments */
+static void
+start_files_access( int argc, char **argv, int first_arg )
+{
+  struct {
+    const char *filename;
+    int write;
+  } files[] = {
+    { settings_current.plus3disk_file, 1 },
+    { settings_current.opusdisk_file, 1 },
+    { settings_current.plusddisk_file, 1 },
+    { settings_current.didaktik80disk_file, 1 },
+    { settings_current.discipledisk_file, 1 },
+    { settings_current.betadisk_file, 1 },
+    { settings_current.dck_file, 0 },
+    { settings_current.if2_file, 0 },
+    { settings_current.playback_file, 0 },
+    { settings_current.record_file, 1 },
+    { settings_current.snapshot, 0 },
+    { settings_current.tape_file, 0 },
+    { settings_current.simpleide_master_file, 1 },
+    { settings_current.simpleide_slave_file, 1 },
+    { settings_current.zxatasp_master_file, 1 },
+    { settings_current.zxatasp_slave_file, 1 },
+    { settings_current.zxcf_pri_file, 1 },
+    { settings_current.divide_master_file, 1 },
+    { settings_current.divide_slave_file, 1 },
+    { settings_current.divmmc_file, 1 },
+    { settings_current.zxmmc_file, 1 },
+    { settings_current.mdr_file, 1 },
+    { settings_current.mdr_file2, 1 },
+    { settings_current.mdr_file3, 1 },
+    { settings_current.mdr_file4, 1 },
+    { settings_current.mdr_file5, 1 },
+    { settings_current.mdr_file6, 1 },
+    { settings_current.mdr_file7, 1 },
+    { settings_current.mdr_file8, 1 },
+  };
+  size_t i;
+
+  for( i = 0; i < ARRAY_SIZE( files ); i++ )
+    ui_start_file_access( files[i].filename, files[i].write );
+  for( i = first_arg; i < (size_t)argc; i++ )
+    ui_start_file_access( argv[i], 0 );
+}
+
+/* The Cocoa app implements this in fusepb/models/Emulator.m */
+#ifndef UI_COCOA
+void
+ui_start_file_access( const char *filename, int write )
+{
+  (void)filename;
+  (void)write;
+}
+#endif				/* #ifndef UI_COCOA */
 
 static int
 setup_start_files( start_files_t *start_files )

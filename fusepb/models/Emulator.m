@@ -21,6 +21,10 @@
 
 */
 
+#include <errno.h>
+#include <libgen.h>
+#include <unistd.h>
+
 #import "DisplayOpenGLView.h"
 #import "Emulator.h"
 #import "AppSandboxFileAccess.h"
@@ -1083,3 +1087,52 @@ static Emulator *instance = nil;
 }
 
 @end
+
+/* Access to start files lasts for the whole run: --record writes its file
+   when recording stops, and disk and hard disk images are written back
+   after startup. */
+static NSMutableArray *start_file_urls = nil;
+
+/* Returns 0 if the file, or the directory of a file not yet created, is
+   accessible, and the access() errno otherwise */
+static int
+start_file_access_error( const char *filename, int write )
+{
+  char *dir;
+  int error;
+
+  if( !access( filename, write ? R_OK | W_OK : R_OK ) ) return 0;
+  if( errno != ENOENT ) return errno;
+
+  dir = strdup( filename );
+  error = access( dirname( dir ), W_OK ) ? errno : 0;
+  free( dir );
+  return error;
+}
+
+void
+ui_start_file_access( const char *filename, int write )
+{
+  AppSandboxFileAccess *fileAccess;
+  NSString *path;
+  int error;
+
+  if( !filename ) return;
+
+  error = start_file_access_error( filename, write );
+  if( error != EPERM && error != EACCES ) return;
+
+  path = [[NSFileManager defaultManager]
+           stringWithFileSystemRepresentation:filename
+                                       length:strlen( filename )];
+  fileAccess = [[AppSandboxFileAccess alloc] init];
+  [fileAccess requestAccessPermissionsForFilePath:path
+                                persistPermission:YES
+                                        withBlock:^( NSURL *url, NSData *bookmark ) {
+    (void)bookmark;
+    if( ![url startAccessingSecurityScopedResource] ) return;
+    if( !start_file_urls ) start_file_urls = [[NSMutableArray alloc] init];
+    [start_file_urls addObject:url];
+  }];
+  [fileAccess release];
+}

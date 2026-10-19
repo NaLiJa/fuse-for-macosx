@@ -42,6 +42,7 @@
 #import <Sparkle/Sparkle.h>
 
 #import "DisplayOpenGLView.h"
+#import "git_commit.h"
 
 #include "compat.h"
 #include "debugger/debugger.h"
@@ -1349,6 +1350,12 @@ save_as_exit:
 - (IBAction)checkForUpdates:(id)sender
 {
   [sparkleUpdaterController checkForUpdates:sender];
+}
+
+- (IBAction)showAboutPanel:(id)sender
+{
+  [NSApp orderFrontStandardAboutPanelWithOptions:
+    @{ NSAboutPanelOptionVersion: @FUSEX_GIT_COMMIT }];
 }
 
 - (void)dealloc

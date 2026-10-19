@@ -154,6 +154,7 @@
 - (IBAction)quit:(id)sender;
 - (IBAction)hide:(id)sender;
 - (IBAction)help:(id)sender;
+- (IBAction)showAboutPanel:(id)sender;
 
 - (IBAction)showRollbackPane:(id)sender;
 - (IBAction)showTapeBrowserPane:(id)sender;

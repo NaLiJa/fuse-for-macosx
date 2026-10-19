@@ -119,7 +119,7 @@
 		[[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
 		NSInteger openPanelButtonPressed = [openPanel runModal];
 		if (openPanelButtonPressed == NSFileHandlingPanelOKButton) {
-			allowedURL = [openPanel URL];
+			allowedURL = [[openPanel URL] retain];
 		}
 	};
 	if ([NSThread isMainThread]) {
@@ -128,7 +128,7 @@
 		dispatch_sync(dispatch_get_main_queue(), displayOpenPanelBlock);
 	}
 
-	return allowedURL;
+	return [allowedURL autorelease];
 }
 
 - (NSData *)persistPermissionPath:(NSString *)path {

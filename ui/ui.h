@@ -126,6 +126,11 @@ int ui_mdr_write( int which, int saveas );
 /* Get a rollback point from the given list */
 int ui_get_rollback_point( GSList *points );
 
+/* Obtain access to a file named in the settings or on the command line,
+   before startup reads it, or with write set, also writes it. A NULL
+   filename is ignored. */
+void ui_start_file_access( const char *filename, int write );
+
 /* Routines to (de)activate certain menu items */
 
 typedef enum ui_menu_item {
